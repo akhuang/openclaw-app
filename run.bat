@@ -69,7 +69,7 @@ for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
     if not defined EXISTING_CMD set "EXISTING_CMD=%%f"
 )
 
-:: 记录需要排除的目录 (已有非本工具的命令所在目录)
+:: 记录需要排除的目录
 set "EXCLUDE_DIR="
 
 if defined EXISTING_CMD (
@@ -82,7 +82,7 @@ if defined EXISTING_CMD (
         echo [配置] 发现已有 openclaw 命令: !EXISTING_CMD! (非本工具生成，不覆盖)
         goto :find_dir_and_write
     )
-    :: 是我们的，检查签名后一行 (实际命令行) 是否匹配
+    :: 是我们的，检查签名后一行是否匹配
     set "FOUND_SIG="
     set "NEXT_LINE="
     for /f "usebackq tokens=*" %%l in ("!EXISTING_CMD!") do (
@@ -90,10 +90,10 @@ if defined EXISTING_CMD (
         if "%%l"=="!SIGNATURE!" set "FOUND_SIG=1"
     )
     if "!NEXT_LINE!"==""!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*" (
-        :: 签名和命令行都匹配，跳过
+        :: 匹配，跳过
         goto :eof
     )
-    :: 是我们的但命令行过期，原地更新
+    :: 是我们的但内容过期，原地更新
     echo [配置] 检测到 openclaw 命令内容已过期，正在更新...
     set "TARGET_CMD=!EXISTING_CMD!"
     goto :write_cmd
@@ -103,23 +103,32 @@ if defined EXISTING_CMD (
 echo [配置] 注册 openclaw 全局命令...
 
 :find_dir_and_write
-:: 找一个确实在 PATH 中、可写、且不是 EXCLUDE_DIR 的目录
+:: 写 PATH 到临时文件，逐行安全解析（避免空格/特殊字符问题）
 set "TARGET_DIR="
-for %%d in ("%PATH:;=" "%") do (
+set "_PATHFILE=%TEMP%\_oc_pathlist.tmp"
+(echo !PATH:;=^
+% =%
+) > "!_PATHFILE!"
+
+for /f "usebackq tokens=* delims=" %%d in ("!_PATHFILE!") do (
     if not defined TARGET_DIR (
-        set "CANDIDATE=%%~d"
-        :: 排除已有非本工具命令的目录
-        set "SKIP="
-        if defined EXCLUDE_DIR if /i "!CANDIDATE!"=="!EXCLUDE_DIR!" set "SKIP=1"
-        if not defined SKIP if exist "!CANDIDATE!" (
-            copy /y nul "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
-            if not errorlevel 1 (
-                del "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
-                set "TARGET_DIR=!CANDIDATE!"
+        set "CANDIDATE=%%d"
+        :: 去除首尾空格
+        for /f "tokens=*" %%t in ("!CANDIDATE!") do set "CANDIDATE=%%t"
+        if "!CANDIDATE!" neq "" (
+            set "SKIP="
+            if defined EXCLUDE_DIR if /i "!CANDIDATE!"=="!EXCLUDE_DIR!" set "SKIP=1"
+            if not defined SKIP if exist "!CANDIDATE!\*" (
+                copy /y nul "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
+                if not errorlevel 1 (
+                    del "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
+                    set "TARGET_DIR=!CANDIDATE!"
+                )
             )
         )
     )
 )
+del "!_PATHFILE!" >nul 2>&1
 
 if not defined TARGET_DIR (
     echo [警告] 未找到可写的 PATH 目录，无法注册全局命令
