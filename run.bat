@@ -58,15 +58,10 @@ goto :eof
 
 :: ============================================================
 :: 子程序: 注册全局命令
-:: 签名行用于识别"这是我们生成的"
 :: ============================================================
 :register_global_cmd
 
 set "SIGNATURE=:: generated-by-openclaw-app"
-set "LINE2="!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*"
-
-:: 生成期望的完整文件内容 (3行)
-set "EXPECTED_FILE=@echo off !SIGNATURE! !LINE2!"
 
 :: 检查现有命令
 set "EXISTING_CMD="
@@ -74,25 +69,31 @@ for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
     if not defined EXISTING_CMD set "EXISTING_CMD=%%f"
 )
 
+:: 记录需要排除的目录 (已有非本工具的命令所在目录)
+set "EXCLUDE_DIR="
+
 if defined EXISTING_CMD (
-    :: 找到了，先验证是否是我们生成的 (检查签名行)
+    :: 检查签名判断是否我们生成的
     findstr /x /c:"!SIGNATURE!" "!EXISTING_CMD!" >nul 2>&1
     if errorlevel 1 (
-        :: 不是我们的，不碰它，新建到别的目录
+        :: 不是我们的，记录其所在目录以排除
+        for %%f in ("!EXISTING_CMD!") do set "EXCLUDE_DIR=%%~dpf"
+        set "EXCLUDE_DIR=!EXCLUDE_DIR:~0,-1!"
         echo [配置] 发现已有 openclaw 命令: !EXISTING_CMD! (非本工具生成，不覆盖)
         goto :find_dir_and_write
     )
-    :: 是我们的，检查内容是否需要更新
-    :: 完整文件比对: 读取文件所有行拼成一个字符串
-    set "FILE_CONTENT="
-    for /f "tokens=*" %%l in ('type "!EXISTING_CMD!" 2^>nul') do (
-        set "FILE_CONTENT=!FILE_CONTENT! %%l"
+    :: 是我们的，检查签名后一行 (实际命令行) 是否匹配
+    set "FOUND_SIG="
+    set "NEXT_LINE="
+    for /f "usebackq tokens=*" %%l in ("!EXISTING_CMD!") do (
+        if defined FOUND_SIG if not defined NEXT_LINE set "NEXT_LINE=%%l"
+        if "%%l"=="!SIGNATURE!" set "FOUND_SIG=1"
     )
-    if "!FILE_CONTENT!"=="!EXPECTED_FILE!" (
-        :: 完全匹配，跳过
+    if "!NEXT_LINE!"==""!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*" (
+        :: 签名和命令行都匹配，跳过
         goto :eof
     )
-    :: 是我们的但内容过期，原地更新
+    :: 是我们的但命令行过期，原地更新
     echo [配置] 检测到 openclaw 命令内容已过期，正在更新...
     set "TARGET_CMD=!EXISTING_CMD!"
     goto :write_cmd
@@ -102,15 +103,19 @@ if defined EXISTING_CMD (
 echo [配置] 注册 openclaw 全局命令...
 
 :find_dir_and_write
-:: 找一个确实在 PATH 中且可写的目录
+:: 找一个确实在 PATH 中、可写、且不是 EXCLUDE_DIR 的目录
 set "TARGET_DIR="
 for %%d in ("%PATH:;=" "%") do (
     if not defined TARGET_DIR (
-        if exist "%%~d" (
-            copy /y nul "%%~d\_oc_test.tmp" >nul 2>&1
+        set "CANDIDATE=%%~d"
+        :: 排除已有非本工具命令的目录
+        set "SKIP="
+        if defined EXCLUDE_DIR if /i "!CANDIDATE!"=="!EXCLUDE_DIR!" set "SKIP=1"
+        if not defined SKIP if exist "!CANDIDATE!" (
+            copy /y nul "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
             if not errorlevel 1 (
-                del "%%~d\_oc_test.tmp" >nul 2>&1
-                set "TARGET_DIR=%%~d"
+                del "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
+                set "TARGET_DIR=!CANDIDATE!"
             )
         )
     )
