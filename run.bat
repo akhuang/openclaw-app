@@ -35,12 +35,12 @@ if not exist "script\openclaw.json" (
 where openclaw >nul 2>&1
 if errorlevel 1 (
     echo [配置] 注册 openclaw 全局命令...
-    pushd app
+    pushd app\node_modules\openclaw
     call npm link >nul 2>&1
     popd
     where openclaw >nul 2>&1
     if errorlevel 1 (
-        echo [警告] 全局注册失败，可手动执行: cd app ^&^& npm link
+        echo [警告] 全局注册失败，可手动执行: cd app\node_modules\openclaw ^&^& npm link
     ) else (
         echo [配置] openclaw 命令已注册，可在任意目录使用
     )
