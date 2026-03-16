@@ -73,10 +73,8 @@ for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
 set "EXCLUDE_DIR="
 
 if defined EXISTING_CMD (
-    :: 检查签名判断是否我们生成的
     findstr /x /c:"!SIGNATURE!" "!EXISTING_CMD!" >nul 2>&1
     if errorlevel 1 (
-        :: 不是我们的，记录其所在目录以排除
         for %%f in ("!EXISTING_CMD!") do set "EXCLUDE_DIR=%%~dpf"
         set "EXCLUDE_DIR=!EXCLUDE_DIR:~0,-1!"
         echo [配置] 发现已有 openclaw 命令: !EXISTING_CMD! (非本工具生成，不覆盖)
@@ -90,10 +88,8 @@ if defined EXISTING_CMD (
         if "%%l"=="!SIGNATURE!" set "FOUND_SIG=1"
     )
     if "!NEXT_LINE!"==""!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*" (
-        :: 匹配，跳过
         goto :eof
     )
-    :: 是我们的但内容过期，原地更新
     echo [配置] 检测到 openclaw 命令内容已过期，正在更新...
     set "TARGET_CMD=!EXISTING_CMD!"
     goto :write_cmd
@@ -103,27 +99,22 @@ if defined EXISTING_CMD (
 echo [配置] 注册 openclaw 全局命令...
 
 :find_dir_and_write
-:: 写 PATH 到临时文件，逐行安全解析（避免空格/特殊字符问题）
+:: 用 PowerShell 安全解析 PATH 并找到第一个可写目录
 set "TARGET_DIR="
 set "_PATHFILE=%TEMP%\_oc_pathlist.tmp"
-(echo !PATH:;=^
-% =%
-) > "!_PATHFILE!"
+
+powershell -NoProfile -Command "$env:PATH -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and (Test-Path $_ -PathType Container) } | ForEach-Object { $_ }" > "!_PATHFILE!" 2>nul
 
 for /f "usebackq tokens=* delims=" %%d in ("!_PATHFILE!") do (
     if not defined TARGET_DIR (
         set "CANDIDATE=%%d"
-        :: 去除首尾空格
-        for /f "tokens=*" %%t in ("!CANDIDATE!") do set "CANDIDATE=%%t"
-        if "!CANDIDATE!" neq "" (
-            set "SKIP="
-            if defined EXCLUDE_DIR if /i "!CANDIDATE!"=="!EXCLUDE_DIR!" set "SKIP=1"
-            if not defined SKIP if exist "!CANDIDATE!\*" (
-                copy /y nul "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
-                if not errorlevel 1 (
-                    del "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
-                    set "TARGET_DIR=!CANDIDATE!"
-                )
+        set "SKIP="
+        if defined EXCLUDE_DIR if /i "!CANDIDATE!"=="!EXCLUDE_DIR!" set "SKIP=1"
+        if not defined SKIP (
+            copy /y nul "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
+            if not errorlevel 1 (
+                del "!CANDIDATE!\_oc_test.tmp" >nul 2>&1
+                set "TARGET_DIR=!CANDIDATE!"
             )
         )
     )
