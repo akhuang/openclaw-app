@@ -32,17 +32,20 @@ if not exist "script\openclaw.json" (
 )
 
 :: 注册 openclaw 全局命令 (仅首次)
+:: 将 openclaw.cmd 所在目录加入用户 PATH
 where openclaw >nul 2>&1
 if errorlevel 1 (
     echo [配置] 注册 openclaw 全局命令...
-    pushd app\node_modules\openclaw
-    call npm link >nul 2>&1
-    popd
-    where openclaw >nul 2>&1
+    set "OC_DIR=%~dp0"
+    set "OC_DIR=%OC_DIR:~0,-1%"
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "USER_PATH=%%b"
+    echo %USER_PATH% | findstr /i /c:"%OC_DIR%" >nul 2>&1
     if errorlevel 1 (
-        echo [警告] 全局注册失败，可手动执行: cd app\node_modules\openclaw ^&^& npm link
+        setx PATH "%USER_PATH%;%OC_DIR%" >nul 2>&1
+        echo [配置] 已将 %OC_DIR% 加入用户 PATH
+        echo [配置] 新开命令行窗口后可直接使用: openclaw 命令
     ) else (
-        echo [配置] openclaw 命令已注册，可在任意目录使用
+        echo [配置] PATH 已包含 openclaw 路径
     )
 )
 
