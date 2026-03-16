@@ -15,7 +15,7 @@
     "defaultProfile": "user",
     "profiles": {
       "user": {
-        "driver": "existing-session",
+        "driver": "extension",
         "attachOnly": true,
         "color": "#00AA00"
       }
