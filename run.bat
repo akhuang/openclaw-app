@@ -37,24 +37,39 @@ if not exist "script\openclaw.json" (
 )
 
 :: ============================================================
-:: 注册/更新 openclaw 全局命令
-:: 策略: openclaw.cmd 就放在本目录，把本目录加到用户 PATH
+:: 注册 openclaw 全局命令
 :: ============================================================
 call :register_global_cmd
 
+:: ============================================================
+:: 步骤 1: 配置 + 注册 (launcher.js 只做初始化，完成后退出)
+:: ============================================================
 echo.
-echo [启动] 正在初始化 OpenClaw 服务...
-echo.
-
-"!OC_NODE!" --no-warnings --max-old-space-size=8192 script\launcher.js
-
+"!OC_NODE!" --no-warnings script\launcher.js
 if errorlevel 1 (
-    echo.
-    echo [异常] 服务已退出，错误码: %errorlevel%
+    echo [异常] 初始化失败
     pause
-) else (
-    pause
+    exit /b 1
 )
+
+:: ============================================================
+:: 步骤 2: 启动代理 (后台)
+:: ============================================================
+echo.
+echo [启动] 启动安全代理...
+start /b "proxy" "!OC_NODE!" --no-warnings script\proxy.js
+
+:: ============================================================
+:: 步骤 3: 直接启动 Gateway (前台，不包在子进程里)
+:: ============================================================
+echo [启动] 启动 OpenClaw Gateway...
+echo.
+
+"!OC_NODE!" --no-warnings --max-old-space-size=8192 "!OC_ENTRY!" gateway --port 18789
+
+echo.
+echo [INFO] OpenClaw 已停止
+pause
 goto :eof
 
 :: ============================================================
@@ -65,11 +80,9 @@ goto :eof
 set "SIGNATURE=:: generated-by-openclaw-app"
 set "TARGET_CMD=!OC_ROOT!\openclaw.cmd"
 
-:: 1. 写入/更新 openclaw.cmd
 set "NEED_WRITE=1"
 
 if exist "!TARGET_CMD!" (
-    :: 检查是否我们的且内容匹配
     set "FOUND_SIG="
     set "NEXT_LINE="
     for /f "usebackq tokens=*" %%l in ("!TARGET_CMD!") do (
@@ -92,7 +105,7 @@ if defined NEED_WRITE (
     echo [配置] 已生成: !TARGET_CMD!
 )
 
-:: 2. 确保 OC_ROOT 在用户 PATH 中 (只加一次)
+:: 确保 OC_ROOT 在用户 PATH 中
 powershell -NoProfile -Command ^
     "$p = [Environment]::GetEnvironmentVariable('PATH','User');" ^
     "if ($p -split ';' | Where-Object { $_.TrimEnd('\') -ieq '%OC_ROOT%'.TrimEnd('\') }) { exit 0 } else { exit 1 }"
@@ -108,12 +121,6 @@ if errorlevel 1 (
         echo [配置] 已加入用户 PATH，新开命令行窗口后可使用: openclaw 命令
     ) else (
         echo [警告] PATH 写入失败，请手动将 !OC_ROOT! 加入系统 PATH
-    )
-) else (
-    :: 已在 PATH 中，检查当前会话是否能找到
-    where openclaw >nul 2>&1
-    if errorlevel 1 (
-        echo [提示] openclaw 已注册，请新开命令行窗口使用
     )
 )
 
