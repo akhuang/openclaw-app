@@ -79,7 +79,8 @@ copy script\openclaw.example.json script\openclaw.json
     "defaultProfile": "user",
     "profiles": {
       "user": {
-        "driver": "extension",
+        "driver": "openclaw",
+        "cdpPort": 9222,
         "attachOnly": true,
         "color": "#00AA00"
       }
@@ -117,10 +118,10 @@ copy script\openclaw.example.json script\openclaw.json
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `driver` | string | `"openclaw"` 启动独立浏览器 / `"clawd"` 通过 clawd 连接 / `"extension"` 通过 Chrome 扩展连接用户 Chrome |
-| `attachOnly` | boolean | `true` = 只连接不启动浏览器 |
+| `driver` | string | `"openclaw"` / `"clawd"` / `"extension"`，复用已有 Chrome 推荐 `"openclaw"` + `attachOnly` |
+| `cdpPort` | number | **必填**，CDP 远程调试端口，如 `9222` |
+| `attachOnly` | boolean | `true` = 只连接已运行的 Chrome，不启动新实例 |
 | `color` | string | 必填，6位 hex 颜色如 `"#00AA00"` |
-| `cdpPort` | number | CDP 端口（`extension` 模式不需要） |
 
 可用颜色参考：`#FF4500` `#0066CC` `#00AA00` `#9933FF` `#FF6699` `#00CCCC` `#FF9900`
 
@@ -157,7 +158,7 @@ skills\intranet-analyzer\scripts\setup_chrome_debug.bat
 chrome.exe --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1
 ```
 
-> 如果使用 `driver: "extension"`，OpenClaw 会通过 Chrome MCP 自动连接，可能不需要手动开启 CDP。
+> Chrome 必须带 `--remote-debugging-port=9222` 启动，OpenClaw 通过 CDP 端口连接复用登录态。
 
 ## 安全说明
 

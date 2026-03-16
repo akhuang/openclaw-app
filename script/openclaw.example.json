@@ -15,7 +15,8 @@
     "defaultProfile": "user",
     "profiles": {
       "user": {
-        "driver": "extension",
+        "driver": "openclaw",
+        "cdpPort": 9222,
         "attachOnly": true,
         "color": "#00AA00"
       }
