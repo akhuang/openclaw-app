@@ -38,7 +38,7 @@ if not exist "script\openclaw.json" (
 
 :: ============================================================
 :: 注册/更新 openclaw 全局命令
-:: 每次启动都校验，路径变化时自动修复
+:: 每次启动都校验内容，路径或参数变化时自动修复
 :: ============================================================
 call :register_global_cmd
 
@@ -62,43 +62,39 @@ goto :eof
 :: ============================================================
 :register_global_cmd
 
-:: 生成期望的 cmd 内容
-set "EXPECTED_LINE="!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*"
+:: 期望的 cmd 内容 (第二行)
+set "EXPECTED_CONTENT="!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*"
 
-:: 检查现有的 openclaw 命令是否指向正确路径
-where openclaw >nul 2>&1
-if not errorlevel 1 (
-    :: 找到了，检查内容是否是我们的且路径正确
-    for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
-        set "EXISTING_CMD=%%f"
-        goto :check_content
+:: 检查现有的 openclaw 命令
+set "EXISTING_CMD="
+for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
+    if not defined EXISTING_CMD set "EXISTING_CMD=%%f"
+)
+
+if defined EXISTING_CMD (
+    :: 找到了，逐行比对内容是否完全匹配
+    set "CONTENT_MATCH="
+    for /f "tokens=*" %%l in ('type "!EXISTING_CMD!" 2^>nul') do (
+        if "%%l"=="!EXPECTED_CONTENT!" set "CONTENT_MATCH=1"
     )
+    if defined CONTENT_MATCH (
+        :: 内容完全匹配，跳过
+        goto :eof
+    )
+    :: 内容不匹配，原地重写这个文件
+    echo [配置] 检测到 openclaw 命令内容已过期，正在更新...
+    set "TARGET_CMD=!EXISTING_CMD!"
+    goto :write_cmd
 )
-goto :do_register
 
-:check_content
-:: 读取现有 cmd 的第二行，看路径是否匹配当前 OC_ROOT
-findstr /i /c:"!OC_ROOT!" "!EXISTING_CMD!" >nul 2>&1
-if not errorlevel 1 (
-    :: 路径正确，跳过注册
-    goto :eof
-)
-:: 路径不对（目录移动过），需要重写
-echo [配置] 检测到 openclaw 命令路径已过期，正在更新...
-goto :write_cmd
-
-:do_register
+:: 不存在，新注册
 echo [配置] 注册 openclaw 全局命令...
 
-:write_cmd
 :: 找一个确实在 PATH 中且可写的目录
 set "TARGET_DIR="
-
-:: 遍历 PATH 中的每个目录，找第一个可写的
 for %%d in ("%PATH:;=" "%") do (
     if not defined TARGET_DIR (
         if exist "%%~d" (
-            :: 尝试写一个临时文件测试可写性
             copy /y nul "%%~d\_oc_test.tmp" >nul 2>&1
             if not errorlevel 1 (
                 del "%%~d\_oc_test.tmp" >nul 2>&1
@@ -114,18 +110,34 @@ if not defined TARGET_DIR (
     goto :eof
 )
 
-:: 写入 openclaw.cmd (单一来源，不依赖仓库里的 openclaw.cmd)
 set "TARGET_CMD=!TARGET_DIR!\openclaw.cmd"
+
+:write_cmd
 (
     echo @echo off
     echo "!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*
 ) > "!TARGET_CMD!"
 
-if not errorlevel 1 (
-    echo [配置] 已写入: !TARGET_CMD!
-    echo [配置] 新开命令行窗口后可使用: openclaw 命令
-) else (
+if errorlevel 1 (
     echo [警告] 写入失败: !TARGET_CMD!
     echo        请手动将 !OC_ROOT! 加入系统 PATH
+    goto :eof
+)
+
+:: 写入后验证 where 能找到且是我们写的那个
+set "VERIFY_CMD="
+for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
+    if not defined VERIFY_CMD set "VERIFY_CMD=%%f"
+)
+
+if "!VERIFY_CMD!"=="!TARGET_CMD!" (
+    echo [配置] 已写入: !TARGET_CMD!
+    echo [配置] 新开命令行窗口后可使用: openclaw 命令
+) else if defined VERIFY_CMD (
+    echo [警告] 已写入 !TARGET_CMD!，但 where 优先找到: !VERIFY_CMD!
+    echo        可能有其他 openclaw 命令优先级更高，请手动清理
+) else (
+    echo [配置] 已写入: !TARGET_CMD!
+    echo [配置] 新开命令行窗口后可使用: openclaw 命令
 )
 goto :eof
