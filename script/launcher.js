@@ -187,12 +187,7 @@ function setupConfig() {
             config.skills.load.extraDirs.push(SKILLS_DIR);
         }
 
-        // 7. 安全: 允许浏览器自动化 (仅限内网)
-        if (!config.security) config.security = {};
-        if (!config.security.sandbox) config.security.sandbox = {};
-        config.security.sandbox.browserAutomation = true;
-
-        // 8. 写入
+        // 7. 写入
         if (!fs.existsSync(TARGET_JSON_DIR)) {
             fs.mkdirSync(TARGET_JSON_DIR, { recursive: true });
         }
