@@ -38,7 +38,6 @@ if not exist "script\openclaw.json" (
 
 :: ============================================================
 :: 注册/更新 openclaw 全局命令
-:: 每次启动都校验内容，路径或参数变化时自动修复
 :: ============================================================
 call :register_global_cmd
 
@@ -59,29 +58,41 @@ goto :eof
 
 :: ============================================================
 :: 子程序: 注册全局命令
+:: 签名行用于识别"这是我们生成的"
 :: ============================================================
 :register_global_cmd
 
-:: 期望的 cmd 内容 (第二行)
-set "EXPECTED_CONTENT="!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*"
+set "SIGNATURE=:: generated-by-openclaw-app"
+set "LINE2="!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*"
 
-:: 检查现有的 openclaw 命令
+:: 生成期望的完整文件内容 (3行)
+set "EXPECTED_FILE=@echo off !SIGNATURE! !LINE2!"
+
+:: 检查现有命令
 set "EXISTING_CMD="
 for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
     if not defined EXISTING_CMD set "EXISTING_CMD=%%f"
 )
 
 if defined EXISTING_CMD (
-    :: 找到了，逐行比对内容是否完全匹配
-    set "CONTENT_MATCH="
-    for /f "tokens=*" %%l in ('type "!EXISTING_CMD!" 2^>nul') do (
-        if "%%l"=="!EXPECTED_CONTENT!" set "CONTENT_MATCH=1"
+    :: 找到了，先验证是否是我们生成的 (检查签名行)
+    findstr /x /c:"!SIGNATURE!" "!EXISTING_CMD!" >nul 2>&1
+    if errorlevel 1 (
+        :: 不是我们的，不碰它，新建到别的目录
+        echo [配置] 发现已有 openclaw 命令: !EXISTING_CMD! (非本工具生成，不覆盖)
+        goto :find_dir_and_write
     )
-    if defined CONTENT_MATCH (
-        :: 内容完全匹配，跳过
+    :: 是我们的，检查内容是否需要更新
+    :: 完整文件比对: 读取文件所有行拼成一个字符串
+    set "FILE_CONTENT="
+    for /f "tokens=*" %%l in ('type "!EXISTING_CMD!" 2^>nul') do (
+        set "FILE_CONTENT=!FILE_CONTENT! %%l"
+    )
+    if "!FILE_CONTENT!"=="!EXPECTED_FILE!" (
+        :: 完全匹配，跳过
         goto :eof
     )
-    :: 内容不匹配，原地重写这个文件
+    :: 是我们的但内容过期，原地更新
     echo [配置] 检测到 openclaw 命令内容已过期，正在更新...
     set "TARGET_CMD=!EXISTING_CMD!"
     goto :write_cmd
@@ -90,6 +101,7 @@ if defined EXISTING_CMD (
 :: 不存在，新注册
 echo [配置] 注册 openclaw 全局命令...
 
+:find_dir_and_write
 :: 找一个确实在 PATH 中且可写的目录
 set "TARGET_DIR="
 for %%d in ("%PATH:;=" "%") do (
@@ -115,6 +127,7 @@ set "TARGET_CMD=!TARGET_DIR!\openclaw.cmd"
 :write_cmd
 (
     echo @echo off
+    echo !SIGNATURE!
     echo "!OC_NODE!" --no-warnings "!OC_ENTRY!" %%*
 ) > "!TARGET_CMD!"
 
@@ -124,7 +137,7 @@ if errorlevel 1 (
     goto :eof
 )
 
-:: 写入后验证 where 能找到且是我们写的那个
+:: 写入后验证
 set "VERIFY_CMD="
 for /f "tokens=*" %%f in ('where openclaw 2^>nul') do (
     if not defined VERIFY_CMD set "VERIFY_CMD=%%f"
@@ -134,8 +147,9 @@ if "!VERIFY_CMD!"=="!TARGET_CMD!" (
     echo [配置] 已写入: !TARGET_CMD!
     echo [配置] 新开命令行窗口后可使用: openclaw 命令
 ) else if defined VERIFY_CMD (
-    echo [警告] 已写入 !TARGET_CMD!，但 where 优先找到: !VERIFY_CMD!
-    echo        可能有其他 openclaw 命令优先级更高，请手动清理
+    echo [警告] 已写入 !TARGET_CMD!
+    echo        但 where 优先找到: !VERIFY_CMD!
+    echo        该命令非本工具生成，openclaw 可能指向其他程序
 ) else (
     echo [配置] 已写入: !TARGET_CMD!
     echo [配置] 新开命令行窗口后可使用: openclaw 命令
