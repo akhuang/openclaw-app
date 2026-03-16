@@ -167,17 +167,9 @@ function setupConfig() {
             log('info', `apiKey 保留模板值: ${templateApiKey}`);
         }
 
-        // 5. 注入 browser 配置 (用于 intranet-analyzer skill)
-        if (!config.browser) {
-            config.browser = {
-                enabled: true,
-                defaultProfile: 'user',
-                evaluateEnabled: true,
-                profiles: {
-                    user: { cdpPort: 9222 }
-                }
-            };
-        }
+        // 5. 启用 browser (具体 profile 由模板 openclaw.json 定义)
+        if (!config.browser) config.browser = {};
+        config.browser.enabled = true;
 
         // 6. 注入 skills 加载路径
         if (!config.skills) config.skills = {};
