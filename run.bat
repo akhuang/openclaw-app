@@ -31,6 +31,22 @@ if not exist "script\openclaw.json" (
     exit /b 1
 )
 
+:: 注册 openclaw 全局命令 (仅首次)
+where openclaw >nul 2>&1
+if errorlevel 1 (
+    echo [配置] 注册 openclaw 全局命令...
+    pushd app
+    call npm link >nul 2>&1
+    popd
+    where openclaw >nul 2>&1
+    if errorlevel 1 (
+        echo [警告] 全局注册失败，可手动执行: cd app ^&^& npm link
+    ) else (
+        echo [配置] openclaw 命令已注册，可在任意目录使用
+    )
+)
+
+echo.
 echo [启动] 正在初始化 OpenClaw 服务...
 echo.
 
