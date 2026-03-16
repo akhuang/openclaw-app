@@ -1,0 +1,58 @@
+{
+  "gateway": {
+    "bind": "loopback",
+    "port": 18789,
+    "tailscale": {
+      "mode": "disabled"
+    },
+    "auth": {
+      "allowTailscale": false,
+      "token": "由 launcher.js 自动生成"
+    }
+  },
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "user",
+    "profiles": {
+      "user": {
+        "driver": "existing-session",
+        "attachOnly": true,
+        "color": "#00AA00"
+      }
+    }
+  },
+  "channels": {
+    "telegram": { "enabled": false },
+    "discord": { "enabled": false },
+    "whatsapp": { "enabled": false },
+    "slack": { "enabled": false },
+    "signal": { "enabled": false },
+    "teams": { "enabled": false },
+    "matrix": { "enabled": false },
+    "irc": { "enabled": false },
+    "line": { "enabled": false },
+    "feishu": { "enabled": false }
+  },
+  "models": {
+    "providers": {
+      "xlb": {
+        "baseUrl": "http://xiaoluban.rnd.huawei.com/v1",
+        "apiKey": "xxx",
+        "api": "openai-completions",
+        "models": [
+          { "id": "deepseek-r1", "name": "DeepSeek R1" }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "xlb/deepseek-r1"
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": []
+    }
+  }
+}
