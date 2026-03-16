@@ -7,6 +7,7 @@
 ```
 openclaw-app/
 ├── run.bat                  # 一键启动 (双击即用)
+├── setup_chrome_debug.bat   # 启动带远程调试的 Chrome (首次运行一次)
 ├── bin/
 │   └── node.exe             # Node.js 22.x portable
 ├── app/
@@ -149,7 +150,7 @@ copy script\openclaw.example.json script\openclaw.json
 需要 Chrome 支持远程调试连接。运行一次：
 
 ```bat
-skills\intranet-analyzer\scripts\setup_chrome_debug.bat
+setup_chrome_debug.bat
 ```
 
 或手动启动 Chrome：
