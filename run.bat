@@ -1,12 +1,15 @@
 @echo off
 chcp 65001 >nul 2>&1
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 echo ============================================
 echo   OpenClaw 内网版 启动器
 echo ============================================
 echo.
+
+set "OC_ROOT=%~dp0"
+set "OC_ROOT=!OC_ROOT:~0,-1!"
 
 :: 检查 Node
 if not exist "bin\node.exe" (
@@ -32,20 +35,35 @@ if not exist "script\openclaw.json" (
 )
 
 :: 注册 openclaw 全局命令 (仅首次)
-:: 将 openclaw.cmd 所在目录加入用户 PATH
 where openclaw >nul 2>&1
 if errorlevel 1 (
     echo [配置] 注册 openclaw 全局命令...
-    set "OC_DIR=%~dp0"
-    set "OC_DIR=%OC_DIR:~0,-1%"
-    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "USER_PATH=%%b"
-    echo %USER_PATH% | findstr /i /c:"%OC_DIR%" >nul 2>&1
-    if errorlevel 1 (
-        setx PATH "%USER_PATH%;%OC_DIR%" >nul 2>&1
-        echo [配置] 已将 %OC_DIR% 加入用户 PATH
+
+    :: 生成带绝对路径的 openclaw.cmd
+    set "TARGET_CMD="
+
+    :: 优先复制到 npm 全局目录
+    for /f "tokens=*" %%p in ('npm prefix -g 2^>nul') do set "NPM_DIR=%%p"
+    if defined NPM_DIR if exist "!NPM_DIR!" (
+        set "TARGET_CMD=!NPM_DIR!\openclaw.cmd"
+    )
+
+    :: 备选: WindowsApps
+    if not defined TARGET_CMD (
+        set "TARGET_CMD=%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\openclaw.cmd"
+    )
+
+    :: 写入 cmd 文件 (绝对路径)
+    (
+        echo @echo off
+        echo "!OC_ROOT!\bin\node.exe" --no-warnings "!OC_ROOT!\app\node_modules\openclaw\openclaw.mjs" %%*
+    ) > "!TARGET_CMD!"
+
+    if not errorlevel 1 (
+        echo [配置] 已写入: !TARGET_CMD!
         echo [配置] 新开命令行窗口后可直接使用: openclaw 命令
     ) else (
-        echo [配置] PATH 已包含 openclaw 路径
+        echo [警告] 全局注册失败，请手动将 !OC_ROOT! 加入系统 PATH
     )
 )
 
