@@ -86,9 +86,7 @@ set "CURRENT_VER="
 where openclaw >nul 2>&1
 if not errorlevel 1 (
     for /f "tokens=*" %%v in ('openclaw --version 2^>nul') do if not defined CURRENT_VER_RAW set "CURRENT_VER_RAW=%%v"
-)
-if defined CURRENT_VER_RAW (
-    for /f "tokens=1,2 delims= " %%a in ("!CURRENT_VER_RAW!") do (
+    for /f "tokens=1,2 delims= " %%a in ('openclaw --version 2^>nul') do if not defined CURRENT_VER (
         if /i "%%a"=="OpenClaw" (
             set "CURRENT_VER=%%b"
         ) else (
@@ -99,16 +97,46 @@ if defined CURRENT_VER_RAW (
 if defined CURRENT_VER if /i "!CURRENT_VER!"=="!REQUIRED_VER!" (
     set "NEED_INSTALL=0"
 )
+if "!NEED_INSTALL!"=="0" if defined CURRENT_VER_RAW (
+    echo [信息] 当前 openclaw 版本 !CURRENT_VER_RAW!，已满足 !REQUIRED_VER!
+)
 if "!NEED_INSTALL!"=="1" if defined CURRENT_VER_RAW (
     echo [安装] 当前 openclaw 版本 !CURRENT_VER_RAW!，需要 !REQUIRED_VER!
 )
 
 if "!NEED_INSTALL!"=="1" (
     echo [安装] 安装 openclaw@!REQUIRED_VER!...
+    where npm >nul 2>&1
+    if errorlevel 1 (
+        echo [错误] 找不到 npm，无法安装 openclaw CLI
+        pause
+        exit /b 1
+    )
+    for /f "tokens=*" %%p in ('where npm 2^>nul') do echo [安装] npm 路径: %%p
+    for /f "tokens=*" %%v in ('npm --version 2^>nul') do echo [安装] npm 版本: %%v
+    for /f "tokens=*" %%v in ('npm config get registry 2^>nul') do echo [安装] npm registry: %%v
+    for /f "tokens=*" %%v in ('npm config get prefix 2^>nul') do echo [安装] npm prefix: %%v
+    for /f "tokens=*" %%v in ('npm root -g 2^>nul') do echo [安装] npm 全局目录: %%v
     if exist "pkg\openclaw-*.tgz" (
-        for %%f in (pkg\openclaw-*.tgz) do npm install -g "%%f"
+        echo [安装] 检测到离线包，使用本地 tgz 安装
+        for %%f in (pkg\openclaw-*.tgz) do (
+            echo [安装] 执行: npm install -g --verbose "%%f"
+            call npm install -g --verbose "%%f"
+            if errorlevel 1 (
+                echo [错误] 离线包安装失败: %%f
+                pause
+                exit /b 1
+            )
+        )
     ) else (
-        npm install -g openclaw@!REQUIRED_VER!
+        echo [安装] 未找到离线包，使用 npm registry 安装 openclaw@!REQUIRED_VER!
+        echo [安装] 执行: npm install -g --verbose openclaw@!REQUIRED_VER!
+        call npm install -g --verbose openclaw@!REQUIRED_VER!
+        if errorlevel 1 (
+            echo [错误] npm registry 安装失败: openclaw@!REQUIRED_VER!
+            pause
+            exit /b 1
+        )
     )
     where openclaw >nul 2>&1
     if errorlevel 1 (
@@ -116,6 +144,8 @@ if "!NEED_INSTALL!"=="1" (
         pause
         exit /b 1
     )
+    for /f "tokens=*" %%p in ('where openclaw 2^>nul') do echo [安装] openclaw 路径: %%p
+    for /f "tokens=*" %%v in ('openclaw --version 2^>nul') do echo [安装] openclaw 版本: %%v
     echo [安装] openclaw CLI 安装成功
 )
 
@@ -140,7 +170,7 @@ if errorlevel 1 (
 :: ============================================================
 :: 步骤 2: 停掉可能残留的旧 Gateway
 :: ============================================================
-openclaw gateway stop >nul 2>&1
+call openclaw gateway stop >nul 2>&1
 
 :: ============================================================
 :: 步骤 3: 启动代理 (后台)
@@ -166,7 +196,7 @@ echo   按 Ctrl+C 停止
 echo ============================================
 echo.
 
-openclaw gateway run --port 18789
+call openclaw gateway run --port 18789
 
 echo.
 echo [INFO] OpenClaw 已停止
