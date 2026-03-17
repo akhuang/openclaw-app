@@ -127,15 +127,12 @@ if errorlevel 1 (
 )
 
 :: ============================================================
-:: 步骤 2: 注册为系统服务 + 启动 Gateway
+:: 步骤 2: 注册 Gateway 服务并启动
 :: ============================================================
 echo.
 echo [启动] 注册并启动 OpenClaw Gateway...
 
-:: 先停掉可能残留的旧实例
 openclaw gateway stop >nul 2>&1
-
-:: 注册为计划任务并启动
 openclaw gateway install --force
 if errorlevel 1 (
     echo [警告] 服务注册失败，尝试前台启动...
@@ -158,33 +155,28 @@ if errorlevel 1 goto :wait_loop
 echo [启动] Gateway 已就绪
 
 :: ============================================================
-:: 步骤 3: 启动代理 (后台)
+:: 步骤 3: 打开浏览器 + 启动代理 (前台保持窗口)
 :: ============================================================
-echo.
-echo [启动] 启动安全代理...
-start /b "" "!OC_NODE!" --no-warnings script\proxy.js
-
-:: ============================================================
-:: 步骤 4: 打开浏览器
-:: ============================================================
-for /f "tokens=*" %%t in ('openclaw config get gateway.auth.token 2^>nul') do set "GW_TOKEN=%%t"
 set "GW_URL=http://127.0.0.1:18789"
 echo.
 echo ============================================
 echo   OpenClaw 已就绪!
 echo   访问地址: !GW_URL!
-echo   按 Ctrl+C 或关闭窗口停止
+echo   代理端口: 18889
+echo   按 Ctrl+C 或关闭窗口停止代理
 echo ============================================
+
 start "" "!GW_URL!"
 
-:: 保持窗口不关闭，显示代理日志
 echo.
-echo [运行中] 代理日志:
+echo [运行中] 安全代理已启动...
 "!OC_NODE!" --no-warnings script\proxy.js
 goto :eof
 
+:: ============================================================
+:: 回退: 前台直接运行 Gateway
+:: ============================================================
 :foreground
-:: 回退：前台直接运行 Gateway
 echo.
 start /b "" "!OC_NODE!" --no-warnings script\proxy.js
 start "" "http://127.0.0.1:18789"
