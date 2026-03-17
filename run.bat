@@ -12,6 +12,7 @@ set "OC_ROOT=%~dp0"
 set "OC_ROOT=!OC_ROOT:~0,-1!"
 set "OC_NODE=!OC_ROOT!\bin\node.exe"
 set "NODE_VERSION=22.16.0"
+set "REQUIRED_VER=2026.3.13"
 
 :: ============================================================
 :: 检查 / 安装 Node.js
@@ -55,17 +56,29 @@ if not exist "!OC_NODE!" (
 )
 
 :: ============================================================
-:: 首次安装官方 openclaw CLI
+:: 安装/更新官方 openclaw CLI
 :: ============================================================
+set "NEED_INSTALL=0"
+
 where openclaw >nul 2>&1
 if errorlevel 1 (
-    echo [安装] 安装 openclaw CLI 命令...
+    set "NEED_INSTALL=1"
+) else (
+    for /f "tokens=*" %%v in ('openclaw --version 2^>nul') do set "CURRENT_VER=%%v"
+    if "!CURRENT_VER!" neq "!REQUIRED_VER!" (
+        echo [安装] 当前 openclaw 版本 !CURRENT_VER!，需要 !REQUIRED_VER!
+        set "NEED_INSTALL=1"
+    )
+)
+
+if "!NEED_INSTALL!"=="1" (
+    echo [安装] 安装 openclaw@!REQUIRED_VER!...
     set "NPM_CMD=!OC_ROOT!\bin\npm.cmd"
     if exist "!NPM_CMD!" (
         if exist "pkg\openclaw-*.tgz" (
             for %%f in (pkg\openclaw-*.tgz) do "!NPM_CMD!" install -g "%%f"
         ) else (
-            "!NPM_CMD!" install -g openclaw@2026.3.13
+            "!NPM_CMD!" install -g openclaw@!REQUIRED_VER!
         )
         where openclaw >nul 2>&1
         if not errorlevel 1 (

@@ -48,10 +48,23 @@ if ! command -v node &>/dev/null; then
 fi
 
 # ============================================================
-# 首次安装官方 openclaw CLI
+# 安装/更新官方 openclaw CLI
 # ============================================================
+REQUIRED_VER="2026.3.13"
+NEED_INSTALL=0
+
 if ! command -v openclaw &>/dev/null; then
-    echo "[安装] 安装 openclaw CLI 命令..."
+    NEED_INSTALL=1
+else
+    CURRENT_VER=$(openclaw --version 2>/dev/null || echo "0")
+    if [ "$CURRENT_VER" != "$REQUIRED_VER" ]; then
+        echo "[安装] 当前 openclaw 版本 $CURRENT_VER，需要 $REQUIRED_VER"
+        NEED_INSTALL=1
+    fi
+fi
+
+if [ "$NEED_INSTALL" = "1" ]; then
+    echo "[安装] 安装 openclaw@${REQUIRED_VER}..."
     if [ -x "$OC_ROOT/bin/npm" ]; then
         NPM="$OC_ROOT/bin/npm"
     elif command -v npm &>/dev/null; then
