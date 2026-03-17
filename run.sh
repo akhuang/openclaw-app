@@ -7,7 +7,6 @@ echo "============================================"
 echo ""
 
 OC_ROOT="$(cd "$(dirname "$0")" && pwd)"
-OC_ENTRY="$OC_ROOT/app/node_modules/openclaw/openclaw.mjs"
 NODE_VERSION="22.16.0"
 
 # ============================================================
@@ -25,7 +24,6 @@ if ! command -v node &>/dev/null; then
         *) echo "[错误] 不支持的架构: $ARCH"; exit 1 ;;
     esac
 
-    # 检查离线包
     NODE_TAR=$(ls "$OC_ROOT"/pkg/node-v*-${OS}-${ARCH}.tar.* 2>/dev/null | head -1)
 
     if [ -n "$NODE_TAR" ]; then
@@ -47,21 +45,6 @@ if ! command -v node &>/dev/null; then
     echo "[安装] Node.js $("$OC_ROOT/bin/node" --version) 安装完成"
 
     export PATH="$OC_ROOT/bin:$PATH"
-fi
-
-# ============================================================
-# 检查 app
-# ============================================================
-if [ ! -f "$OC_ENTRY" ]; then
-    echo "[错误] 找不到 OpenClaw 入口文件"
-    echo "       请确认 app/ 目录已正确构建"
-    exit 1
-fi
-
-# 检查模板配置
-if [ ! -f "$OC_ROOT/script/openclaw.json" ]; then
-    echo "[错误] 找不到配置模板 script/openclaw.json"
-    exit 1
 fi
 
 # ============================================================
@@ -87,6 +70,21 @@ if ! command -v openclaw &>/dev/null; then
 fi
 
 # ============================================================
+# 检查 openclaw 可用
+# ============================================================
+if ! command -v openclaw &>/dev/null; then
+    echo "[错误] openclaw 命令不可用"
+    echo "       请手动运行: npm install -g openclaw@2026.3.13"
+    exit 1
+fi
+
+# 检查模板配置
+if [ ! -f "$OC_ROOT/script/openclaw.json" ]; then
+    echo "[错误] 找不到配置模板 script/openclaw.json"
+    exit 1
+fi
+
+# ============================================================
 # 步骤 1: 配置初始化 + 注册
 # ============================================================
 echo ""
@@ -100,7 +98,6 @@ echo "[启动] 启动安全代理..."
 node --no-warnings "$OC_ROOT/script/proxy.js" &
 PROXY_PID=$!
 
-# Gateway 停止时清理代理进程
 cleanup() {
     echo ""
     echo "[INFO] 正在清理..."
@@ -115,8 +112,4 @@ trap cleanup SIGINT SIGTERM EXIT
 echo "[启动] 启动 OpenClaw Gateway..."
 echo ""
 
-if command -v openclaw &>/dev/null; then
-    openclaw gateway --port 18789
-else
-    node --no-warnings --max-old-space-size=8192 "$OC_ENTRY" gateway --port 18789
-fi
+openclaw gateway --port 18789
