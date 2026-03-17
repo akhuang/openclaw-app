@@ -17,15 +17,12 @@ set "REQUIRED_VER=2026.3.13"
 
 :: ============================================================
 :: 检查 Node.js
-:: 优先用 bin\node.exe，没有则检查系统 Node 版本
 :: ============================================================
 set "USE_SYSTEM_NODE="
 
 if not exist "!OC_NODE!" (
-    :: 检查系统 Node
     where node >nul 2>&1
     if not errorlevel 1 (
-        :: 系统有 Node，检查版本
         for /f "tokens=1 delims=v." %%m in ('node --version 2^>nul') do set "SYS_NODE_MAJOR=%%m"
         if !SYS_NODE_MAJOR! geq %NODE_MAJOR_MIN% (
             echo [信息] 使用系统 Node.js
@@ -38,7 +35,6 @@ if not exist "!OC_NODE!" (
     )
 )
 
-:: 如果没有可用 Node，安装到 bin/
 if not defined USE_SYSTEM_NODE if not exist "!OC_ROOT!\bin\node.exe" (
     echo [安装] 安装 Node.js v%NODE_VERSION%...
 
@@ -55,7 +51,6 @@ if not defined USE_SYSTEM_NODE if not exist "!OC_ROOT!\bin\node.exe" (
             "Invoke-WebRequest -Uri '!NODE_URL!' -OutFile '%TEMP%\node.zip' -UseBasicParsing"
         if errorlevel 1 (
             echo [错误] Node.js 下载失败
-            echo        请手动下载 Node.js v%NODE_VERSION% 并解压到 bin\ 目录
             pause
             exit /b 1
         )
@@ -77,7 +72,6 @@ if not defined USE_SYSTEM_NODE if not exist "!OC_ROOT!\bin\node.exe" (
     for /f "tokens=*" %%v in ('"!OC_NODE!" --version') do echo [安装] Node.js %%v 安装完成
 )
 
-:: 确保 bin 目录的 npm 可用 (用于安装 openclaw)
 if not defined USE_SYSTEM_NODE (
     set "PATH=!OC_ROOT!\bin;!PATH!"
 )
@@ -122,7 +116,7 @@ if not exist "script\openclaw.json" (
 )
 
 :: ============================================================
-:: 步骤 1: 配置初始化 + 注册
+:: 步骤 1: 配置初始化 + 小鲁班注册
 :: ============================================================
 echo.
 "!OC_NODE!" --no-warnings script\launcher.js
@@ -133,20 +127,68 @@ if errorlevel 1 (
 )
 
 :: ============================================================
-:: 步骤 2: 启动代理 (后台)
+:: 步骤 2: 注册为系统服务 + 启动 Gateway
+:: ============================================================
+echo.
+echo [启动] 注册并启动 OpenClaw Gateway...
+
+:: 先停掉可能残留的旧实例
+openclaw gateway stop >nul 2>&1
+
+:: 注册为计划任务并启动
+openclaw gateway install --force
+if errorlevel 1 (
+    echo [警告] 服务注册失败，尝试前台启动...
+    goto :foreground
+)
+
+:: 等待 Gateway 就绪
+echo [启动] 等待 Gateway 就绪...
+set "RETRY=0"
+:wait_loop
+if !RETRY! geq 15 (
+    echo [警告] Gateway 启动超时
+    goto :foreground
+)
+set /a RETRY+=1
+powershell -NoProfile -Command "Start-Sleep -Milliseconds 2000"
+openclaw gateway probe >nul 2>&1
+if errorlevel 1 goto :wait_loop
+
+echo [启动] Gateway 已就绪
+
+:: ============================================================
+:: 步骤 3: 启动代理 (后台)
 :: ============================================================
 echo.
 echo [启动] 启动安全代理...
 start /b "" "!OC_NODE!" --no-warnings script\proxy.js
 
 :: ============================================================
-:: 步骤 3: 启动 Gateway (前台)
+:: 步骤 4: 打开浏览器
 :: ============================================================
-echo [启动] 启动 OpenClaw Gateway...
+for /f "tokens=*" %%t in ('openclaw config get gateway.auth.token 2^>nul') do set "GW_TOKEN=%%t"
+set "GW_URL=http://127.0.0.1:18789"
 echo.
+echo ============================================
+echo   OpenClaw 已就绪!
+echo   访问地址: !GW_URL!
+echo   按 Ctrl+C 或关闭窗口停止
+echo ============================================
+start "" "!GW_URL!"
 
-openclaw gateway --port 18789
+:: 保持窗口不关闭，显示代理日志
+echo.
+echo [运行中] 代理日志:
+"!OC_NODE!" --no-warnings script\proxy.js
+goto :eof
 
+:foreground
+:: 回退：前台直接运行 Gateway
+echo.
+start /b "" "!OC_NODE!" --no-warnings script\proxy.js
+start "" "http://127.0.0.1:18789"
+openclaw gateway run --port 18789
 echo.
 echo [INFO] OpenClaw 已停止
 pause
