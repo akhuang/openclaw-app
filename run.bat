@@ -33,7 +33,7 @@ if not exist "!OC_NODE!" (
             set "USE_SYSTEM_NODE=1"
             set "OC_NODE=node"
         ) else (
-            echo [信息] 系统 Node 版本过低 (需要 v%NODE_MAJOR_MIN%+)，将安装内置版本
+            echo [信息] 系统 Node 版本过低，需要 v%NODE_MAJOR_MIN%+，将安装内置版本
         )
     )
 )
