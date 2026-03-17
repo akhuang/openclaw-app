@@ -80,13 +80,14 @@ if not defined USE_SYSTEM_NODE (
 :: 安装/更新官方 openclaw CLI
 :: ============================================================
 set "NEED_INSTALL=1"
+set "CURRENT_VER="
 
 where openclaw >nul 2>&1
 if not errorlevel 1 (
     for /f "tokens=*" %%v in ('openclaw --version 2^>nul') do set "CURRENT_VER=%%v"
 )
 if defined CURRENT_VER (
-    echo !CURRENT_VER! | findstr /b "!REQUIRED_VER!" >nul 2>&1 && set "NEED_INSTALL=0"
+    echo !CURRENT_VER! | findstr /b /l /c:"!REQUIRED_VER!" >nul 2>&1 && set "NEED_INSTALL=0"
 )
 if "!NEED_INSTALL!"=="1" if defined CURRENT_VER (
     echo [安装] 当前 openclaw 版本 !CURRENT_VER!，需要 !REQUIRED_VER!
