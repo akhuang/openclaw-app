@@ -86,7 +86,8 @@ if errorlevel 1 (
     set "NEED_INSTALL=1"
 ) else (
     for /f "tokens=*" %%v in ('openclaw --version 2^>nul') do set "CURRENT_VER=%%v"
-    if "!CURRENT_VER!" neq "!REQUIRED_VER!" (
+    echo !CURRENT_VER! | findstr /b "!REQUIRED_VER!" >nul 2>&1
+    if errorlevel 1 (
         echo [安装] 当前 openclaw 版本 !CURRENT_VER!，需要 !REQUIRED_VER!
         set "NEED_INSTALL=1"
     )

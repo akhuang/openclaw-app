@@ -72,7 +72,7 @@ if ! command -v openclaw &>/dev/null; then
     NEED_INSTALL=1
 else
     CURRENT_VER=$(openclaw --version 2>/dev/null || echo "0")
-    if [ "$CURRENT_VER" != "$REQUIRED_VER" ]; then
+    if ! echo "$CURRENT_VER" | grep -q "^${REQUIRED_VER}"; then
         echo "[安装] 当前 openclaw 版本 $CURRENT_VER，需要 $REQUIRED_VER"
         NEED_INSTALL=1
     fi
