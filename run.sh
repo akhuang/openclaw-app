@@ -69,9 +69,12 @@ fi
 # ============================================================
 if ! command -v openclaw &>/dev/null; then
     echo "[安装] 安装 openclaw CLI 命令..."
-    NPM_CMD="$OC_ROOT/bin/npm"
-    if [ -x "$NPM_CMD" ] || command -v npm &>/dev/null; then
-        NPM="${NPM_CMD:-npm}"
+    if [ -x "$OC_ROOT/bin/npm" ]; then
+        NPM="$OC_ROOT/bin/npm"
+    elif command -v npm &>/dev/null; then
+        NPM="npm"
+    fi
+    if [ -n "$NPM" ]; then
         TGZ=$(ls "$OC_ROOT"/pkg/openclaw-*.tgz 2>/dev/null | head -1)
         if [ -n "$TGZ" ]; then
             "$NPM" install -g "$TGZ" 2>/dev/null && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
