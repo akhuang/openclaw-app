@@ -12,8 +12,23 @@ NODE_VERSION="22.16.0"
 # ============================================================
 # 检查 / 安装 Node.js
 # ============================================================
-if ! command -v node &>/dev/null; then
-    echo "[安装] 未检测到 Node.js"
+NODE_MAJOR_MIN=22
+NEED_NODE_INSTALL=0
+
+if command -v node &>/dev/null; then
+    SYS_NODE_MAJOR=$(node --version | sed 's/v\([0-9]*\).*/\1/')
+    if [ "$SYS_NODE_MAJOR" -ge "$NODE_MAJOR_MIN" ]; then
+        echo "[信息] 使用系统 Node.js $(node --version)"
+    else
+        echo "[信息] 系统 Node 版本过低 (需要 v${NODE_MAJOR_MIN}+)，将安装内置版本"
+        NEED_NODE_INSTALL=1
+    fi
+else
+    NEED_NODE_INSTALL=1
+fi
+
+if [ "$NEED_NODE_INSTALL" = "1" ]; then
+    echo "[安装] 安装 Node.js v${NODE_VERSION}..."
 
     ARCH=$(uname -m)
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -73,9 +88,9 @@ if [ "$NEED_INSTALL" = "1" ]; then
     if [ -n "$NPM" ]; then
         TGZ=$(ls "$OC_ROOT"/pkg/openclaw-*.tgz 2>/dev/null | head -1)
         if [ -n "$TGZ" ]; then
-            "$NPM" install -g "$TGZ" 2>/dev/null && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
+            "$NPM" install -g "$TGZ" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
         else
-            "$NPM" install -g openclaw@2026.3.13 2>/dev/null && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
+            "$NPM" install -g "openclaw@${REQUIRED_VER}" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
         fi
     else
         echo "[警告] 未找到 npm，跳过 CLI 安装"

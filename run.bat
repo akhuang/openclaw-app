@@ -12,16 +12,38 @@ set "OC_ROOT=%~dp0"
 set "OC_ROOT=!OC_ROOT:~0,-1!"
 set "OC_NODE=!OC_ROOT!\bin\node.exe"
 set "NODE_VERSION=22.16.0"
+set "NODE_MAJOR_MIN=22"
 set "REQUIRED_VER=2026.3.13"
 
 :: ============================================================
-:: 检查 / 安装 Node.js
+:: 检查 Node.js
+:: 优先用 bin\node.exe，没有则检查系统 Node 版本
 :: ============================================================
+set "USE_SYSTEM_NODE="
+
 if not exist "!OC_NODE!" (
-    echo [安装] 未检测到 bin\node.exe
+    :: 检查系统 Node
+    where node >nul 2>&1
+    if not errorlevel 1 (
+        :: 系统有 Node，检查版本
+        for /f "tokens=1 delims=v." %%m in ('node --version 2^>nul') do set "SYS_NODE_MAJOR=%%m"
+        if !SYS_NODE_MAJOR! geq %NODE_MAJOR_MIN% (
+            echo [信息] 使用系统 Node.js
+            for /f "tokens=*" %%v in ('node --version') do echo [信息] 版本: %%v
+            set "USE_SYSTEM_NODE=1"
+            set "OC_NODE=node"
+        ) else (
+            echo [信息] 系统 Node 版本过低 (需要 v%NODE_MAJOR_MIN%+)，将安装内置版本
+        )
+    )
+)
+
+:: 如果没有可用 Node，安装到 bin/
+if not defined USE_SYSTEM_NODE if not exist "!OC_ROOT!\bin\node.exe" (
+    echo [安装] 安装 Node.js v%NODE_VERSION%...
 
     if exist "pkg\node-v*.zip" (
-        echo [安装] 发现离线 Node.js 包，正在解压...
+        echo [安装] 发现离线包，正在解压...
         for %%f in (pkg\node-v*.zip) do (
             powershell -NoProfile -Command "Expand-Archive -Path '%%f' -DestinationPath '%TEMP%\oc_node_tmp' -Force"
         )
@@ -55,6 +77,11 @@ if not exist "!OC_NODE!" (
     for /f "tokens=*" %%v in ('"!OC_NODE!" --version') do echo [安装] Node.js %%v 安装完成
 )
 
+:: 确保 bin 目录的 npm 可用 (用于安装 openclaw)
+if not defined USE_SYSTEM_NODE (
+    set "PATH=!OC_ROOT!\bin;!PATH!"
+)
+
 :: ============================================================
 :: 安装/更新官方 openclaw CLI
 :: ============================================================
@@ -73,27 +100,18 @@ if errorlevel 1 (
 
 if "!NEED_INSTALL!"=="1" (
     echo [安装] 安装 openclaw@!REQUIRED_VER!...
-    set "NPM_CMD=!OC_ROOT!\bin\npm.cmd"
-    if exist "!NPM_CMD!" (
-        if exist "pkg\openclaw-*.tgz" (
-            for %%f in (pkg\openclaw-*.tgz) do "!NPM_CMD!" install -g "%%f"
-        ) else (
-            "!NPM_CMD!" install -g openclaw@!REQUIRED_VER!
-        )
-        where openclaw >nul 2>&1
-        if not errorlevel 1 (
-            echo [安装] openclaw CLI 安装成功
-        ) else (
-            echo [错误] openclaw CLI 安装失败
-            pause
-            exit /b 1
-        )
+    if exist "pkg\openclaw-*.tgz" (
+        for %%f in (pkg\openclaw-*.tgz) do npm install -g "%%f"
     ) else (
-        echo [错误] 未找到 npm，无法安装 openclaw
-        echo        请确认 bin\ 目录包含完整的 Node.js (含 npm)
+        npm install -g openclaw@!REQUIRED_VER!
+    )
+    where openclaw >nul 2>&1
+    if errorlevel 1 (
+        echo [错误] openclaw CLI 安装失败
         pause
         exit /b 1
     )
+    echo [安装] openclaw CLI 安装成功
 )
 
 :: 检查模板配置
@@ -122,7 +140,7 @@ echo [启动] 启动安全代理...
 start /b "" "!OC_NODE!" --no-warnings script\proxy.js
 
 :: ============================================================
-:: 步骤 3: 启动 Gateway (前台，用官方命令)
+:: 步骤 3: 启动 Gateway (前台)
 :: ============================================================
 echo [启动] 启动 OpenClaw Gateway...
 echo.
