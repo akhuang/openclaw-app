@@ -1,9 +1,10 @@
 {
   "gateway": {
+    "mode": "local",
     "bind": "loopback",
     "port": 18789,
     "tailscale": {
-      "mode": "disabled"
+      "mode": "off"
     },
     "auth": {
       "allowTailscale": false,
@@ -20,18 +21,6 @@
         "color": "#00AA00"
       }
     }
-  },
-  "channels": {
-    "telegram": { "enabled": false },
-    "discord": { "enabled": false },
-    "whatsapp": { "enabled": false },
-    "slack": { "enabled": false },
-    "signal": { "enabled": false },
-    "teams": { "enabled": false },
-    "matrix": { "enabled": false },
-    "irc": { "enabled": false },
-    "line": { "enabled": false },
-    "feishu": { "enabled": false }
   },
   "models": {
     "providers": {

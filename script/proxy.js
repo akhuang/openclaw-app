@@ -31,6 +31,15 @@ const server = net.createServer((clientSocket) => {
     clientSocket.on('close', handleError);
 });
 
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`⚠️ 代理端口 ${EXTERNAL_PORT} 已被占用，跳过代理启动`);
+    } else {
+        console.log(`⚠️ 代理启动失败: ${err.message}`);
+    }
+    // 不 crash，让 Gateway 继续运行
+});
+
 server.listen(EXTERNAL_PORT, '0.0.0.0', () => {
     console.log(`✅ 代理已启动: 0.0.0.0:${EXTERNAL_PORT} -> 127.0.0.1:${INTERNAL_PORT}`);
 });
