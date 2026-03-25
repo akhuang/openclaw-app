@@ -1,6 +1,8 @@
 # OpenClaw 内网部署
 
-华为内网一键部署 OpenClaw (v2026.3.13+)，对接小鲁班 + 供应链查询。
+华为内网一键部署 OpenClaw，对接小鲁班 + 供应链查询。
+
+当前仓库内置的 OpenClaw 版本以 `openclaw.version` 为准；启动脚本和安装脚本会统一读取该文件。
 
 ## 目录结构
 
@@ -31,7 +33,7 @@ openclaw-app/
 
 ```
 1) 将 Node.js 22.x 的 node.exe 放入 bin/
-2) 将 OpenClaw 包放入 app/ (参见 build/README.md)
+2) 准备与 openclaw.version 对应版本的 tgz 包，放入 pkg/，文件名保持 openclaw-<版本号>.tgz
 3) 复制 script/openclaw.example.json 为 script/openclaw.json，修改配置
 ```
 
@@ -115,7 +117,7 @@ copy script\openclaw.example.json script\openclaw.json
 }
 ```
 
-### browser profile 配置 (v2026.3.13)
+### browser profile 配置
 
 OpenClaw 支持三种浏览器连接方式 (driver)：
 
@@ -125,7 +127,7 @@ OpenClaw 支持三种浏览器连接方式 (driver)：
 | `openclaw` | CDP 端口连接 | **需要** | 需要带 `--remote-debugging-port` 启动 |
 | `extension` | Chrome 扩展连接 | **需要** | 不需要 |
 
-#### 推荐方案：existing-session (v2026.3.13+)
+#### 推荐方案：existing-session
 
 自动连接用户已运行的 Chrome，无需重启、无需 CDP 端口、无需 Chrome 扩展。
 
@@ -143,7 +145,7 @@ OpenClaw 支持三种浏览器连接方式 (driver)：
 }
 ```
 
-> 注意：`existing-session` 在 v2026.3.13 中修复了配置校验问题 (PR #45682)，旧版本可能报错。
+> 注意：当前仓库内置版本已经包含 `existing-session` 的配置校验修复；如果你手动降级到较旧版本，仍可能报错。
 
 #### 备选方案：openclaw + CDP
 

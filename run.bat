@@ -13,7 +13,20 @@ set "OC_ROOT=!OC_ROOT:~0,-1!"
 set "OC_NODE=!OC_ROOT!\bin\node.exe"
 set "NODE_VERSION=22.16.0"
 set "NODE_MAJOR_MIN=22"
-set "REQUIRED_VER=2026.3.13"
+
+if not exist "openclaw.version" (
+    echo [错误] 找不到版本文件 openclaw.version
+    pause
+    exit /b 1
+)
+
+set /p REQUIRED_VER=<openclaw.version
+if not defined REQUIRED_VER (
+    echo [错误] openclaw.version 为空
+    pause
+    exit /b 1
+)
+set "LOCAL_TGZ=pkg\openclaw-!REQUIRED_VER!.tgz"
 
 :: ============================================================
 :: 检查 Node.js
@@ -94,12 +107,15 @@ if not errorlevel 1 (
         )
     )
 )
+
 if defined CURRENT_VER if /i "!CURRENT_VER!"=="!REQUIRED_VER!" (
     set "NEED_INSTALL=0"
 )
+
 if "!NEED_INSTALL!"=="0" if defined CURRENT_VER_RAW (
     echo [信息] 当前 openclaw 版本 !CURRENT_VER_RAW!，已满足 !REQUIRED_VER!
 )
+
 if "!NEED_INSTALL!"=="1" if defined CURRENT_VER_RAW (
     echo [安装] 当前 openclaw 版本 !CURRENT_VER_RAW!，需要 !REQUIRED_VER!
 )
@@ -117,19 +133,20 @@ if "!NEED_INSTALL!"=="1" (
     for /f "tokens=*" %%v in ('npm config get registry 2^>nul') do echo [安装] npm registry: %%v
     for /f "tokens=*" %%v in ('npm config get prefix 2^>nul') do echo [安装] npm prefix: %%v
     for /f "tokens=*" %%v in ('npm root -g 2^>nul') do echo [安装] npm 全局目录: %%v
-    if exist "pkg\openclaw-*.tgz" (
-        echo [安装] 检测到离线包，使用本地 tgz 安装
-        for %%f in (pkg\openclaw-*.tgz) do (
-            echo [安装] 执行: npm install -g --verbose "%%f"
-            call npm install -g --verbose "%%f"
-            if errorlevel 1 (
-                echo [错误] 离线包安装失败: %%f
-                pause
-                exit /b 1
-            )
+    if exist "!LOCAL_TGZ!" (
+        echo [安装] 检测到匹配版本的离线包，使用 !LOCAL_TGZ! 安装
+        echo [安装] 执行: npm install -g --verbose "!LOCAL_TGZ!"
+        call npm install -g --verbose "!LOCAL_TGZ!"
+        if errorlevel 1 (
+            echo [错误] 离线包安装失败: !LOCAL_TGZ!
+            pause
+            exit /b 1
         )
     ) else (
-        echo [安装] 未找到离线包，使用 npm registry 安装 openclaw@!REQUIRED_VER!
+        if exist "pkg\openclaw-*.tgz" (
+            echo [警告] 检测到离线包，但没有匹配版本 !REQUIRED_VER! 的 tgz，改用 npm registry
+        )
+        echo [安装] 未找到匹配版本的离线包，使用 npm registry 安装 openclaw@!REQUIRED_VER!
         echo [安装] 执行: npm install -g --verbose openclaw@!REQUIRED_VER!
         call npm install -g --verbose openclaw@!REQUIRED_VER!
         if errorlevel 1 (

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "============================================"
 echo "  OpenClaw 内网版 启动器"
@@ -8,6 +8,15 @@ echo ""
 
 OC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 NODE_VERSION="22.16.0"
+VERSION_FILE="$OC_ROOT/openclaw.version"
+
+if [ ! -s "$VERSION_FILE" ]; then
+    echo "[错误] 找不到版本文件 $VERSION_FILE"
+    exit 1
+fi
+
+REQUIRED_VER="$(tr -d '\r\n' < "$VERSION_FILE")"
+LOCAL_TGZ="$OC_ROOT/pkg/openclaw-${REQUIRED_VER}.tgz"
 
 # ============================================================
 # 检查 / 安装 Node.js
@@ -65,14 +74,15 @@ fi
 # ============================================================
 # 安装/更新官方 openclaw CLI
 # ============================================================
-REQUIRED_VER="2026.3.13"
 NEED_INSTALL=0
 
 if ! command -v openclaw &>/dev/null; then
     NEED_INSTALL=1
 else
     CURRENT_VER=$(openclaw --version 2>/dev/null || echo "0")
-    if ! echo "$CURRENT_VER" | grep -q "^${REQUIRED_VER}"; then
+    CURRENT_VER="${CURRENT_VER#OpenClaw }"
+    CURRENT_VER="${CURRENT_VER%% *}"
+    if [ "$CURRENT_VER" != "$REQUIRED_VER" ]; then
         echo "[安装] 当前 openclaw 版本 $CURRENT_VER，需要 $REQUIRED_VER"
         NEED_INSTALL=1
     fi
@@ -80,16 +90,19 @@ fi
 
 if [ "$NEED_INSTALL" = "1" ]; then
     echo "[安装] 安装 openclaw@${REQUIRED_VER}..."
+    NPM=""
     if [ -x "$OC_ROOT/bin/npm" ]; then
         NPM="$OC_ROOT/bin/npm"
     elif command -v npm &>/dev/null; then
         NPM="npm"
     fi
     if [ -n "$NPM" ]; then
-        TGZ=$(ls "$OC_ROOT"/pkg/openclaw-*.tgz 2>/dev/null | head -1)
-        if [ -n "$TGZ" ]; then
-            "$NPM" install -g "$TGZ" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
+        if [ -f "$LOCAL_TGZ" ]; then
+            "$NPM" install -g "$LOCAL_TGZ" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
         else
+            if compgen -G "$OC_ROOT/pkg/openclaw-*.tgz" >/dev/null; then
+                echo "[警告] 检测到离线包，但没有匹配版本 ${REQUIRED_VER} 的 tgz，改用 npm registry"
+            fi
             "$NPM" install -g "openclaw@${REQUIRED_VER}" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
         fi
     else
@@ -102,7 +115,7 @@ fi
 # ============================================================
 if ! command -v openclaw &>/dev/null; then
     echo "[错误] openclaw 命令不可用"
-    echo "       请手动运行: npm install -g openclaw@2026.3.13"
+    echo "       请手动运行: npm install -g openclaw@${REQUIRED_VER}"
     exit 1
 fi
 

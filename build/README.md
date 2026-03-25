@@ -1,4 +1,6 @@
-# 内网编译 OpenClaw (v2026.3.13)
+# 内网编译 OpenClaw
+
+编译目标版本以仓库根目录的 `openclaw.version` 为准。下面示例里的 `<VERSION>` 都表示该文件中的版本号。
 
 ## 前置条件
 
@@ -11,7 +13,7 @@
 ### 1. 克隆指定版本
 
 ```bat
-git clone --branch v2026.3.13-1 --depth 1 https://github.com/openclaw/openclaw.git
+git clone --branch v<VERSION> --depth 1 https://github.com/openclaw/openclaw.git
 cd openclaw
 ```
 
@@ -52,14 +54,14 @@ set NODE_OPTIONS=--max-old-space-size=16384
 pnpm pack
 ```
 
-生成 `openclaw-2026.3.13.tgz`。
+生成 `openclaw-<VERSION>.tgz`。
 
 ### 6. 部署到 app/
 
 ```bat
 cd ..\openclaw-app\app
 npm init -y
-npm install ..\openclaw\openclaw-2026.3.13.tgz --force
+npm install ..\openclaw\openclaw-<VERSION>.tgz --force
 ```
 
 验证入口文件存在：
@@ -72,7 +74,7 @@ dir node_modules\openclaw\openclaw.mjs
 
 ```bat
 cd openclaw-app\app
-npm install ..\openclaw\openclaw-2026.3.13.tgz --force
+npm install ..\openclaw\openclaw-<VERSION>.tgz --force
 ```
 
 ## 常见问题
