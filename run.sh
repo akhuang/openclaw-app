@@ -21,6 +21,8 @@ OPENCLAW_CMD="$OC_NPM_PREFIX/bin/openclaw"
 export OPENCLAW_STATE_DIR="$OC_STATE_DIR"
 export OPENCLAW_CONFIG_PATH="$OC_CONFIG_PATH"
 export OPENCLAW_WORKSPACE_DIR="$OC_WORKSPACE_DIR"
+export OC_LOCAL_NPM="${OC_ROOT}/bin/npm"
+export OC_LOCAL_OPENCLAW_CMD="$OPENCLAW_CMD"
 
 echo "[信息] OpenClaw 状态目录: $OPENCLAW_STATE_DIR"
 echo "[信息] OpenClaw 配置文件: $OPENCLAW_CONFIG_PATH"
@@ -153,6 +155,15 @@ fi
 # ============================================================
 echo ""
 node --no-warnings "$OC_ROOT/script/launcher.js"
+
+# ============================================================
+# 步骤 1.5: 自动准备本地 Welink 插件
+# ============================================================
+if [ -f "$OC_ROOT/extensions/welink/package.json" ]; then
+    echo ""
+    echo "[安装] 检查 Welink 本地插件..."
+    node --no-warnings "$OC_ROOT/script/setup-welink-plugin.js"
+fi
 
 # ============================================================
 # 步骤 2: 启动代理 (后台)

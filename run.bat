@@ -57,6 +57,8 @@ set "PATH=!OC_BIN_DIR!;!OC_NPM_PREFIX!;!PATH!"
 set "OPENCLAW_STATE_DIR=!OC_STATE_DIR!"
 set "OPENCLAW_CONFIG_PATH=!OC_CONFIG_PATH!"
 set "OPENCLAW_WORKSPACE_DIR=!OC_WORKSPACE_DIR!"
+set "OC_LOCAL_NPM=!OC_NPM!"
+set "OC_LOCAL_OPENCLAW_CMD=!OPENCLAW_CMD!"
 
 for /f "tokens=*" %%v in ('"!OC_NODE!" --version 2^>nul') do echo [信息] Node.js 版本: %%v
 for /f "tokens=*" %%v in ('"!OC_NPM!" --version 2^>nul') do echo [信息] npm 版本: %%v
@@ -147,6 +149,20 @@ if errorlevel 1 (
     echo [异常] 初始化失败
     pause
     exit /b 1
+)
+
+:: ============================================================
+:: 步骤 1.5: 自动准备本地 Welink 插件
+:: ============================================================
+if exist "extensions\welink\package.json" (
+    echo.
+    echo [安装] 检查 Welink 本地插件...
+    "!OC_NODE!" --no-warnings script\setup-welink-plugin.js
+    if errorlevel 1 (
+        echo [异常] Welink 本地插件初始化失败
+        pause
+        exit /b 1
+    )
 )
 
 :: ============================================================
