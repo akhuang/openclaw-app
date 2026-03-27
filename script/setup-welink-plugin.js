@@ -18,7 +18,6 @@ function resolveCommandFromEnv(envKey, fallback) {
     return value;
 }
 
-const NPM_CMD = resolveCommandFromEnv('OC_LOCAL_NPM', 'npm');
 const OPENCLAW_CMD = resolveCommandFromEnv('OC_LOCAL_OPENCLAW_CMD', 'openclaw');
 
 function readJson(filePath) {
@@ -42,46 +41,6 @@ function withWelinkAllowed(config) {
             allow: [...currentAllow, 'welink'],
         },
     };
-}
-
-function quoteWindowsShellArg(value) {
-    const str = String(value);
-    if (!str) {
-        return '""';
-    }
-    if (!/[\s"&()<>^|]/.test(str)) {
-        return str;
-    }
-    return `"${str.replace(/"/g, '""')}"`;
-}
-
-function runCommand(command, args, opts = {}) {
-    const spawnOptions = {
-        stdio: 'inherit',
-        env: process.env,
-        cwd: opts.cwd || ROOT_DIR,
-    };
-
-    const result = process.platform === 'win32'
-        ? spawnSync(
-            process.env.ComSpec || 'cmd.exe',
-            [
-                '/d',
-                '/s',
-                '/c',
-                `"${[command, ...args].map(quoteWindowsShellArg).join(' ')}"`,
-            ],
-            spawnOptions
-        )
-        : spawnSync(command, args, spawnOptions);
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    if (result.status !== 0) {
-        throw new Error(`${command} ${args.join(' ')} failed with status ${result.status}`);
-    }
 }
 
 function shouldConfigureWelink() {
@@ -178,6 +137,35 @@ function hasZodDependency() {
     return fs.existsSync(path.join(EXT_DIR, 'node_modules', 'zod', 'package.json'));
 }
 
+function resolveInstalledDependencyPackageDir(packageName) {
+    const openclawPackageDir = resolveInstalledOpenClawPackageDir();
+    const openclawNodeModules = path.dirname(openclawPackageDir);
+    const candidate = path.join(openclawNodeModules, packageName);
+    if (!fs.existsSync(path.join(candidate, 'package.json'))) {
+        throw new Error(`找不到已安装的依赖包 ${packageName}: ${candidate}`);
+    }
+    return candidate;
+}
+
+function ensureLinkedDependency(packageName) {
+    const installedPackageDir = resolveInstalledDependencyPackageDir(packageName);
+    const extNodeModules = path.join(EXT_DIR, 'node_modules');
+    const extPackageDir = path.join(extNodeModules, packageName);
+
+    fs.mkdirSync(extNodeModules, { recursive: true });
+
+    if (fs.existsSync(path.join(extPackageDir, 'package.json'))) {
+        return;
+    }
+
+    if (fs.existsSync(extPackageDir)) {
+        fs.rmSync(extPackageDir, { recursive: true, force: true });
+    }
+
+    const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
+    fs.symlinkSync(installedPackageDir, extPackageDir, symlinkType);
+}
+
 function ensureOpenClawDependency(requiredVersion) {
     const installedPackageDir = resolveInstalledOpenClawPackageDir();
     const installedVersion = readInstalledPackageVersion(installedPackageDir);
@@ -209,15 +197,8 @@ function ensureZodDependency() {
         return;
     }
 
-    console.log(`[welink] 安装 zod 到 ${EXT_DIR}`);
-    runCommand(NPM_CMD, [
-        'install',
-        '--prefix',
-        EXT_DIR,
-        '--no-save',
-        '--no-package-lock',
-        'zod@^4.3.6',
-    ]);
+    console.log('[welink] 链接 zod 运行时依赖');
+    ensureLinkedDependency('zod');
 }
 
 function ensureExtensionDependencies() {
@@ -230,43 +211,42 @@ function ensureExtensionDependencies() {
 }
 
 function ensurePluginLinkedAndEnabled() {
-    let originalConfig = null;
-    let preservedWelinkConfig = null;
+    const config = fs.existsSync(CONFIG_PATH) ? readJson(CONFIG_PATH) : {};
+    const pluginVersion = readJson(EXT_PACKAGE_JSON).version || '0.1.0';
+    const plugins = config.plugins || {};
+    const loadPaths = Array.isArray(plugins.load?.paths) ? plugins.load.paths : [];
+    const installs = plugins.installs || {};
 
-    if (fs.existsSync(CONFIG_PATH)) {
-        originalConfig = readJson(CONFIG_PATH);
-        preservedWelinkConfig = originalConfig?.channels?.welink;
-
-        if (preservedWelinkConfig) {
-            const strippedConfig = structuredClone(originalConfig);
-            delete strippedConfig.channels?.welink;
-            writeJson(CONFIG_PATH, strippedConfig);
-            console.log('[welink] 已临时移除 channels.welink，准备安装插件');
-        }
-    }
-
-    try {
-        console.log('[welink] 链接本地插件 extensions/welink');
-        runCommand(OPENCLAW_CMD, ['plugins', 'install', '--link', EXT_DIR]);
-
-        console.log('[welink] 启用 welink 插件');
-        runCommand(OPENCLAW_CMD, ['plugins', 'enable', 'welink']);
-    } finally {
-        if (preservedWelinkConfig) {
-            const latestConfig = fs.existsSync(CONFIG_PATH) ? readJson(CONFIG_PATH) : {};
-            const mergedConfig = withWelinkAllowed({
-                ...latestConfig,
-                channels: {
-                    ...(latestConfig.channels || {}),
-                    welink: preservedWelinkConfig,
+    const nextConfig = withWelinkAllowed({
+        ...config,
+        plugins: {
+            ...plugins,
+            load: {
+                ...(plugins.load || {}),
+                paths: loadPaths.includes(EXT_DIR) ? loadPaths : [...loadPaths, EXT_DIR],
+            },
+            entries: {
+                ...(plugins.entries || {}),
+                welink: {
+                    ...((plugins.entries || {}).welink || {}),
+                    enabled: true,
                 },
-            });
-            writeJson(CONFIG_PATH, mergedConfig);
-            console.log('[welink] 已恢复 channels.welink 配置');
-        } else if (originalConfig) {
-            writeJson(CONFIG_PATH, originalConfig);
-        }
-    }
+            },
+            installs: {
+                ...installs,
+                welink: {
+                    source: 'path',
+                    sourcePath: EXT_DIR,
+                    installPath: EXT_DIR,
+                    version: pluginVersion,
+                    installedAt: installs.welink?.installedAt || new Date().toISOString(),
+                },
+            },
+        },
+    });
+
+    writeJson(CONFIG_PATH, nextConfig);
+    console.log('[welink] 已写入本地插件配置');
 }
 
 function main() {
