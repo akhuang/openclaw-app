@@ -56,25 +56,16 @@ pnpm pack
 
 生成 `openclaw-<VERSION>.tgz`。
 
-### 6. 部署到 app/
+### 6. 部署到 pkg/
 
 ```bat
-cd ..\openclaw-app\app
-npm init -y
-npm install ..\openclaw\openclaw-<VERSION>.tgz --force
+copy openclaw-<VERSION>.tgz ..\openclaw-app\pkg\
 ```
 
 验证入口文件存在：
 
-```bat
-dir node_modules\openclaw\openclaw.mjs
-```
-
-### 更新已有部署
-
-```bat
-cd openclaw-app\app
-npm install ..\openclaw\openclaw-<VERSION>.tgz --force
+```sh
+tar -tzf ../openclaw-app/pkg/openclaw-<VERSION>.tgz | grep openclaw.mjs
 ```
 
 ## 常见问题

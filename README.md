@@ -10,11 +10,15 @@
 openclaw-app/
 ├── run.bat                  # 一键启动 (双击即用)
 ├── bin/
-│   └── node.exe             # Node.js 22.x portable
-├── app/
-│   ├── package.json
-│   └── node_modules/
-│       └── openclaw/        # OpenClaw 包
+│   ├── node.exe             # Node.js 22.x portable
+│   └── npm.cmd              # npm portable
+├── pkg/
+│   └── openclaw-<版本号>.tgz
+├── runtime/
+│   └── npm-global/          # 本地 openclaw CLI 安装目录
+├── data/
+│   ├── .openclaw/           # OpenClaw 状态目录（配置/会话/日志）
+│   └── workspace/           # OpenClaw 工作区
 ├── script/
 │   ├── launcher.js          # 启动器 (配置/注册/代理)
 │   ├── openclaw.json        # 配置模板 (必须)
@@ -32,10 +36,14 @@ openclaw-app/
 ### 1. 准备环境
 
 ```
-1) 将 Node.js 22.x 的 node.exe 放入 bin/
+1) 确认 bin/ 目录存在，并包含 node.exe / npm.cmd
 2) 准备与 openclaw.version 对应版本的 tgz 包，放入 pkg/，文件名保持 openclaw-<版本号>.tgz
 3) 复制 script/openclaw.example.json 为 script/openclaw.json，修改配置
 ```
+
+正式分发包默认已经预置 `bin/`，不依赖系统 Node.js / npm。
+启动脚本会把 `OPENCLAW_STATE_DIR`、`OPENCLAW_CONFIG_PATH`、`OPENCLAW_WORKSPACE_DIR`
+都指向当前目录下的 `data/`，不会写入用户主目录中的默认状态目录。
 
 ### 2. 配置模板
 
@@ -54,7 +62,9 @@ copy script\openclaw.example.json script\openclaw.json
 ### 3. 启动
 
 双击 `run.bat`，自动完成：
-- 读取模板生成 `~/.openclaw/openclaw.json`（保留已有 Token）
+- 复用本地 `bin\node.exe` / `bin\npm.cmd`
+- 从 `pkg/openclaw-<版本>.tgz` 安装到 `runtime\npm-global\`
+- 读取模板生成 `data\.openclaw\openclaw.json`（保留已有 Token）
 - 向小鲁班注册
 - 启动 OpenClaw Gateway (端口 18789)
 - 启动 IP 白名单代理 (端口 18889)
@@ -66,7 +76,7 @@ copy script\openclaw.example.json script\openclaw.json
 1. 读取模板
 2. 从旧配置提取 Token（首次运行自动生成）
 3. 注入 Token、端口、apiKey、browser、skills 路径
-4. **完全覆盖**写入 `~/.openclaw/openclaw.json`（覆盖前自动备份 .bak）
+4. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
 
 ### 完整配置示例
 
@@ -211,7 +221,7 @@ chrome.exe --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1
 
 ### 注意事项
 
-- **Token 存储**：`~/.openclaw/openclaw.json` 中 Token 为明文，确保该文件仅当前用户可读
+- **Token 存储**：`data/.openclaw/openclaw.json` 中 Token 为明文，确保当前目录权限受控
 - **注册走 HTTP**：小鲁班注册请求为明文传输，Token 和 whoami 在内网裸传
 
 ## launcher.js 功能

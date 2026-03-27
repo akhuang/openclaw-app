@@ -13,8 +13,13 @@ const SERVER_URL = 'http://xiaoluban.rnd.huawei.com:80/y/llm/register-gateway';
 const ROOT_DIR = path.resolve(__dirname, '..');
 const TEMPLATE_JSON = path.join(__dirname, 'openclaw.json');
 const SKILLS_DIR = path.join(ROOT_DIR, 'skills');
-const TARGET_JSON_DIR = path.join(os.homedir(), '.openclaw');
-const TARGET_JSON_FILE = path.join(TARGET_JSON_DIR, 'openclaw.json');
+const DEFAULT_STATE_DIR = path.join(ROOT_DIR, 'data', '.openclaw');
+const STATE_DIR = path.resolve(process.env.OPENCLAW_STATE_DIR || DEFAULT_STATE_DIR);
+const TARGET_JSON_FILE = path.resolve(
+    process.env.OPENCLAW_CONFIG_PATH || path.join(STATE_DIR, 'openclaw.json')
+);
+const TARGET_JSON_DIR = path.dirname(TARGET_JSON_FILE);
+const WORKSPACE_DIR = path.resolve(process.env.OPENCLAW_WORKSPACE_DIR || path.join(ROOT_DIR, 'data', 'workspace'));
 
 // ==================== 步骤 1: 生成并部署配置文件 ====================
 function setupConfig() {
@@ -79,8 +84,15 @@ function setupConfig() {
             config.skills.load.extraDirs.push(SKILLS_DIR);
         }
 
+        if (!config.agents) config.agents = {};
+        if (!config.agents.defaults) config.agents.defaults = {};
+        config.agents.defaults.workspace = WORKSPACE_DIR;
+
         if (!fs.existsSync(TARGET_JSON_DIR)) {
             fs.mkdirSync(TARGET_JSON_DIR, { recursive: true });
+        }
+        if (!fs.existsSync(WORKSPACE_DIR)) {
+            fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
         }
 
         fs.writeFileSync(TARGET_JSON_FILE, JSON.stringify(config, null, 2));

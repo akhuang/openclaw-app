@@ -9,6 +9,23 @@ echo ""
 OC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 NODE_VERSION="22.16.0"
 VERSION_FILE="$OC_ROOT/openclaw.version"
+OC_DATA_DIR="$OC_ROOT/data"
+OC_STATE_DIR="$OC_DATA_DIR/.openclaw"
+OC_CONFIG_PATH="$OC_STATE_DIR/openclaw.json"
+OC_WORKSPACE_DIR="$OC_DATA_DIR/workspace"
+OC_RUNTIME_DIR="$OC_ROOT/runtime"
+OC_NPM_PREFIX="$OC_RUNTIME_DIR/npm-global"
+OC_NPM_CACHE="$OC_RUNTIME_DIR/npm-cache"
+OPENCLAW_CMD="$OC_NPM_PREFIX/bin/openclaw"
+
+export OPENCLAW_STATE_DIR="$OC_STATE_DIR"
+export OPENCLAW_CONFIG_PATH="$OC_CONFIG_PATH"
+export OPENCLAW_WORKSPACE_DIR="$OC_WORKSPACE_DIR"
+
+echo "[信息] OpenClaw 状态目录: $OPENCLAW_STATE_DIR"
+echo "[信息] OpenClaw 配置文件: $OPENCLAW_CONFIG_PATH"
+echo "[信息] OpenClaw 工作区: $OPENCLAW_WORKSPACE_DIR"
+echo ""
 
 if [ ! -s "$VERSION_FILE" ]; then
     echo "[错误] 找不到版本文件 $VERSION_FILE"
@@ -74,17 +91,18 @@ fi
 # ============================================================
 # 安装/更新官方 openclaw CLI
 # ============================================================
-NEED_INSTALL=0
+NEED_INSTALL=1
+CURRENT_VER=""
 
-if ! command -v openclaw &>/dev/null; then
-    NEED_INSTALL=1
-else
-    CURRENT_VER=$(openclaw --version 2>/dev/null || echo "0")
+if [ -x "$OPENCLAW_CMD" ]; then
+    CURRENT_VER=$("$OPENCLAW_CMD" --version 2>/dev/null || echo "0")
     CURRENT_VER="${CURRENT_VER#OpenClaw }"
     CURRENT_VER="${CURRENT_VER%% *}"
     if [ "$CURRENT_VER" != "$REQUIRED_VER" ]; then
         echo "[安装] 当前 openclaw 版本 $CURRENT_VER，需要 $REQUIRED_VER"
         NEED_INSTALL=1
+    else
+        NEED_INSTALL=0
     fi
 fi
 
@@ -96,26 +114,31 @@ if [ "$NEED_INSTALL" = "1" ]; then
     elif command -v npm &>/dev/null; then
         NPM="npm"
     fi
-    if [ -n "$NPM" ]; then
-        if [ -f "$LOCAL_TGZ" ]; then
-            "$NPM" install -g "$LOCAL_TGZ" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
-        else
-            if compgen -G "$OC_ROOT/pkg/openclaw-*.tgz" >/dev/null; then
-                echo "[警告] 检测到离线包，但没有匹配版本 ${REQUIRED_VER} 的 tgz，改用 npm registry"
-            fi
-            "$NPM" install -g "openclaw@${REQUIRED_VER}" && echo "[安装] openclaw CLI 安装成功" || echo "[警告] CLI 安装失败"
-        fi
-    else
-        echo "[警告] 未找到 npm，跳过 CLI 安装"
+    if [ -z "$NPM" ]; then
+        echo "[错误] 未找到 npm，无法安装 openclaw CLI"
+        exit 1
     fi
+    mkdir -p "$OC_NPM_PREFIX" "$OC_NPM_CACHE"
+    if [ -f "$LOCAL_TGZ" ]; then
+        "$NPM" install -g --prefix "$OC_NPM_PREFIX" --cache "$OC_NPM_CACHE" "$LOCAL_TGZ"
+    else
+        if compgen -G "$OC_ROOT/pkg/openclaw-*.tgz" >/dev/null; then
+            echo "[警告] 检测到离线包，但没有匹配版本 ${REQUIRED_VER} 的 tgz，改用 npm registry"
+        fi
+        "$NPM" install -g --prefix "$OC_NPM_PREFIX" --cache "$OC_NPM_CACHE" "openclaw@${REQUIRED_VER}"
+    fi
+    if [ ! -x "$OPENCLAW_CMD" ]; then
+        echo "[错误] openclaw CLI 安装失败: $OPENCLAW_CMD"
+        exit 1
+    fi
+    echo "[安装] openclaw CLI 安装成功"
 fi
 
 # ============================================================
 # 检查 openclaw 可用
 # ============================================================
-if ! command -v openclaw &>/dev/null; then
-    echo "[错误] openclaw 命令不可用"
-    echo "       请手动运行: npm install -g openclaw@${REQUIRED_VER}"
+if [ ! -x "$OPENCLAW_CMD" ]; then
+    echo "[错误] openclaw 命令不可用: $OPENCLAW_CMD"
     exit 1
 fi
 
@@ -153,4 +176,4 @@ trap cleanup SIGINT SIGTERM EXIT
 echo "[启动] 启动 OpenClaw Gateway..."
 echo ""
 
-openclaw gateway --port 18789
+"$OPENCLAW_CMD" gateway run --port 18789
