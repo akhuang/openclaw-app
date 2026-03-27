@@ -1,0 +1,23 @@
+{
+  "name": "@openclaw/welink",
+  "version": "0.1.0",
+  "description": "Welink channel plugin for OpenClaw",
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "welink",
+      "label": "Welink",
+      "selectionLabel": "Welink (Webhook)",
+      "docsPath": "/channels/welink",
+      "docsLabel": "welink",
+      "blurb": "Connect Welink bot to OpenClaw with webhook-based message delivery.",
+      "order": 100
+    }
+  }
+}

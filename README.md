@@ -4,6 +4,9 @@
 
 当前仓库内置的 OpenClaw 版本以 `openclaw.version` 为准；启动脚本和安装脚本会统一读取该文件。
 
+Welink 宿主接入的完整步骤见：
+[docs/welink-supply-openclaw-bot.md](docs/welink-supply-openclaw-bot.md)
+
 ## 目录结构
 
 ```

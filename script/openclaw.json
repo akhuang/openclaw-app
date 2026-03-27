@@ -1,0 +1,59 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 18789,
+    "tailscale": {
+      "mode": "off"
+    },
+    "auth": {
+      "allowTailscale": false,
+      "token": "由 launcher.js 自动生成"
+    }
+  },
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "user",
+    "profiles": {
+      "user": {
+        "driver": "existing-session",
+        "attachOnly": true,
+        "color": "#00AA00"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "xlb": {
+        "baseUrl": "http://xiaoluban.rnd.huawei.com/v1",
+        "apiKey": "xxx",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "deepseek-r1",
+            "name": "DeepSeek R1"
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "xlb/deepseek-r1"
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": []
+    }
+  },
+  "channels": {
+    "welink": {
+      "enabled": true,
+      "token": "e661d3c606e4988e6795f97d88c8c9b8f621d3c899b750b8",
+      "callbackUrl": "http://127.0.0.1:18890/messages/send",
+      "webhookPath": "/webhook/welink/default",
+      "dmPolicy": "open"
+    }
+  }
+}

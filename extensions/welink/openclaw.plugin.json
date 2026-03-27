@@ -1,0 +1,9 @@
+{
+  "id": "welink",
+  "channels": ["welink"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
