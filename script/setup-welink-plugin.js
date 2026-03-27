@@ -44,13 +44,40 @@ function withWelinkAllowed(config) {
     };
 }
 
+function quoteWindowsShellArg(value) {
+    const str = String(value);
+    if (!str) {
+        return '""';
+    }
+    if (!/[\s"&()<>^|]/.test(str)) {
+        return str;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
+}
+
 function runCommand(command, args, opts = {}) {
-    const result = spawnSync(command, args, {
+    const spawnOptions = {
         stdio: 'inherit',
-        shell: process.platform === 'win32',
         env: process.env,
         cwd: opts.cwd || ROOT_DIR,
-    });
+    };
+
+    const result = process.platform === 'win32'
+        ? spawnSync(
+            process.env.ComSpec || 'cmd.exe',
+            [
+                '/d',
+                '/s',
+                '/c',
+                `"${[command, ...args].map(quoteWindowsShellArg).join(' ')}"`,
+            ],
+            spawnOptions
+        )
+        : spawnSync(command, args, spawnOptions);
+
+    if (result.error) {
+        throw result.error;
+    }
 
     if (result.status !== 0) {
         throw new Error(`${command} ${args.join(' ')} failed with status ${result.status}`);
