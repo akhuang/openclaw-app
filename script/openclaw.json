@@ -12,7 +12,7 @@
     }
   },
   "browser": {
-    "enabled": true,
+    "enabled": false,
     "defaultProfile": "user",
     "profiles": {
       "user": {
@@ -25,13 +25,17 @@
   "models": {
     "providers": {
       "xlb": {
-        "baseUrl": "http://xiaoluban.rnd.huawei.com/v1",
-        "apiKey": "xxx",
+        "baseUrl": "http://xiaoluban.rnd.huawei.com/y/llm/v1",
+        "apiKey": "openclaw",
         "api": "openai-completions",
         "models": [
           {
-            "id": "deepseek-r1",
-            "name": "DeepSeek R1"
+            "id": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+            "name": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API"
+          },
+          {
+            "id": "Qwen3.5-9B-Q4-OPENCLAW_API",
+            "name": "Qwen3.5-9B-Q4-OPENCLAW_API"
           }
         ]
       }
@@ -39,7 +43,11 @@
   },
   "agents": {
     "defaults": {
-      "model": "xlb/deepseek-r1"
+      "model": "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+      "models": {
+        "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API": {},
+        "xlb/Qwen3.5-9B-Q4-OPENCLAW_API": {}
+      }
     }
   },
   "skills": {

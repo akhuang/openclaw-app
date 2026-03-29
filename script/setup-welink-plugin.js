@@ -139,12 +139,32 @@ function hasZodDependency() {
 
 function resolveInstalledDependencyPackageDir(packageName) {
     const openclawPackageDir = resolveInstalledOpenClawPackageDir();
-    const openclawNodeModules = path.dirname(openclawPackageDir);
-    const candidate = path.join(openclawNodeModules, packageName);
-    if (!fs.existsSync(path.join(candidate, 'package.json'))) {
-        throw new Error(`找不到已安装的依赖包 ${packageName}: ${candidate}`);
+    const candidateDirs = [
+        path.join(path.dirname(openclawPackageDir), packageName),
+        path.join(openclawPackageDir, 'node_modules', packageName),
+    ];
+
+    for (const candidate of candidateDirs) {
+        if (fs.existsSync(path.join(candidate, 'package.json'))) {
+            return candidate;
+        }
     }
-    return candidate;
+
+    throw new Error(
+        `找不到已安装的依赖包 ${packageName}: ${candidateDirs.join(' 或 ')}`
+    );
+}
+
+function isSameDependencyTarget(candidatePath, targetPath) {
+    if (!fs.existsSync(candidatePath)) {
+        return false;
+    }
+
+    try {
+        return fs.realpathSync(candidatePath) === fs.realpathSync(targetPath);
+    } catch {
+        return false;
+    }
 }
 
 function ensureLinkedDependency(packageName) {
@@ -154,7 +174,7 @@ function ensureLinkedDependency(packageName) {
 
     fs.mkdirSync(extNodeModules, { recursive: true });
 
-    if (fs.existsSync(path.join(extPackageDir, 'package.json'))) {
+    if (isSameDependencyTarget(extPackageDir, installedPackageDir)) {
         return;
     }
 
@@ -193,6 +213,7 @@ function ensureOpenClawDependency(requiredVersion) {
 
 function ensureZodDependency() {
     if (hasZodDependency()) {
+        ensureLinkedDependency('zod');
         console.log('[welink] zod 依赖已就绪');
         return;
     }

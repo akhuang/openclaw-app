@@ -72,9 +72,9 @@ if [ "$NEED_NODE_INSTALL" = "1" ]; then
     if [ -n "$NODE_TAR" ]; then
         echo "[安装] 发现离线 Node.js 包: $(basename "$NODE_TAR")"
     else
-        NODE_TAR="/tmp/node-v${NODE_VERSION}-${OS}-${ARCH}.tar.xz"
-        echo "[安装] 正在下载 Node.js v${NODE_VERSION}..."
-        curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${OS}-${ARCH}.tar.xz" -o "$NODE_TAR"
+        echo "[错误] 未找到离线 Node.js 包，已禁止联网下载"
+        echo "[错误] 请先将 node-v${NODE_VERSION}-${OS}-${ARCH}.tar.xz 放入 pkg/"
+        exit 1
     fi
 
     echo "[安装] 正在解压..."
@@ -124,10 +124,9 @@ if [ "$NEED_INSTALL" = "1" ]; then
     if [ -f "$LOCAL_TGZ" ]; then
         "$NPM" install -g --prefix "$OC_NPM_PREFIX" --cache "$OC_NPM_CACHE" "$LOCAL_TGZ"
     else
-        if compgen -G "$OC_ROOT/pkg/openclaw-*.tgz" >/dev/null; then
-            echo "[警告] 检测到离线包，但没有匹配版本 ${REQUIRED_VER} 的 tgz，改用 npm registry"
-        fi
-        "$NPM" install -g --prefix "$OC_NPM_PREFIX" --cache "$OC_NPM_CACHE" "openclaw@${REQUIRED_VER}"
+        echo "[错误] 未找到匹配版本的离线包: $LOCAL_TGZ"
+        echo "[错误] 已禁止从 npm registry 下载 openclaw"
+        exit 1
     fi
     if [ ! -x "$OPENCLAW_CMD" ]; then
         echo "[错误] openclaw CLI 安装失败: $OPENCLAW_CMD"

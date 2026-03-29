@@ -58,17 +58,19 @@ copy script\openclaw.example.json script\openclaw.json
 
 | 配置项 | 说明 |
 |--------|------|
-| `models.providers.xlb.baseUrl` | 内网 LLM 服务地址 |
-| `models.providers.xlb.apiKey` | 留 `xxx` 则自动替换为 whoami |
-| `agents.defaults.model` | 默认模型，如 `xlb/deepseek-r1` |
+| `models.providers.xlb.baseUrl` | 内网 LLM 服务地址；launcher 会拒绝未授权外网主机 |
+| `models.providers.xlb.apiKey` | 当前模板使用固定占位值 `openclaw`；也可改成任意非空字母串 |
+| `models.providers.xlb.models` | 可用模型列表；launcher 会据此生成只显示这些模型的 allowlist |
+| `agents.defaults.model` | 默认模型，如 `xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API`，必须在上面的模型列表内 |
 
 ### 3. 启动
 
 双击 `run.bat`，自动完成：
 - 复用本地 `bin\node.exe` / `bin\npm.cmd`
-- 从 `pkg/openclaw-<版本>.tgz` 安装到 `runtime\npm-global\`
+- 只从离线包安装 `openclaw`，不会访问 npm registry
+- Linux 只从离线包安装 Node.js，不会访问 `nodejs.org`
 - 读取模板生成 `data\.openclaw\openclaw.json`（保留已有 Token）
-- 向小鲁班注册
+- 默认不向任何外部地址注册
 - 启动 OpenClaw Gateway (端口 18789)
 - 启动 IP 白名单代理 (端口 18889)
 - 打开浏览器
@@ -78,8 +80,10 @@ copy script\openclaw.example.json script\openclaw.json
 `script/openclaw.json` 是配置模板。每次启动时 launcher.js 会：
 1. 读取模板
 2. 从旧配置提取 Token（首次运行自动生成）
-3. 注入 Token、端口、apiKey、browser、skills 路径
-4. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
+3. 强制关闭 browser 工具，注入 Token、端口、apiKey、skills 路径，并根据 `models.providers.*.models` 生成 `agents.defaults.models`
+4. 校验所有模型 `baseUrl` 只能指向内网 IP 或白名单主机
+5. 默认跳过服务端注册，避免任何额外出网调用
+6. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
 
 ### 完整配置示例
 
@@ -92,7 +96,7 @@ copy script\openclaw.example.json script\openclaw.json
     "auth": { "allowTailscale": false }
   },
   "browser": {
-    "enabled": true,
+    "enabled": false,
     "defaultProfile": "user",
     "profiles": {
       "user": {
@@ -113,18 +117,29 @@ copy script\openclaw.example.json script\openclaw.json
   "models": {
     "providers": {
       "xlb": {
-        "baseUrl": "http://xiaoluban.rnd.huawei.com/v1",
-        "apiKey": "xxx",
+        "baseUrl": "http://xiaoluban.rnd.huawei.com/y/llm/v1",
+        "apiKey": "openclaw",
         "api": "openai-completions",
         "models": [
-          { "id": "deepseek-r1", "name": "DeepSeek R1" }
+          {
+            "id": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+            "name": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API"
+          },
+          {
+            "id": "Qwen3.5-9B-Q4-OPENCLAW_API",
+            "name": "Qwen3.5-9B-Q4-OPENCLAW_API"
+          }
         ]
       }
     }
   },
   "agents": {
     "defaults": {
-      "model": "xlb/deepseek-r1"
+      "model": "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+      "models": {
+        "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API": {},
+        "xlb/Qwen3.5-9B-Q4-OPENCLAW_API": {}
+      }
     }
   }
 }

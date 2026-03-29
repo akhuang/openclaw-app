@@ -6,6 +6,14 @@
   "dependencies": {
     "zod": "^4.3.6"
   },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.24"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
   "openclaw": {
     "extensions": [
       "./index.ts"

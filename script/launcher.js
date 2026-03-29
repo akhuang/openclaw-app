@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
@@ -8,10 +7,13 @@ const { execSync } = require('child_process');
 const INTERNAL_PORT = 18789;
 const EXTERNAL_PORT = 18889;
 const SERVER_URL = 'http://xiaoluban.rnd.huawei.com:80/y/llm/register-gateway';
+const ENABLE_GATEWAY_REGISTRATION = process.env.OPENCLAW_ENABLE_GATEWAY_REGISTRATION === '1';
+const DEFAULT_ALLOWED_MODEL_HOSTS = ['127.0.0.1', 'localhost', 'xiaoluban.rnd.huawei.com'];
 
 // ==================== 全局变量 ====================
 const ROOT_DIR = path.resolve(__dirname, '..');
 const TEMPLATE_JSON = path.join(__dirname, 'openclaw.json');
+const VERSION_FILE = path.join(ROOT_DIR, 'openclaw.version');
 const SKILLS_DIR = path.join(ROOT_DIR, 'skills');
 const DEFAULT_STATE_DIR = path.join(ROOT_DIR, 'data', '.openclaw');
 const STATE_DIR = path.resolve(process.env.OPENCLAW_STATE_DIR || DEFAULT_STATE_DIR);
@@ -21,12 +23,130 @@ const TARGET_JSON_FILE = path.resolve(
 const TARGET_JSON_DIR = path.dirname(TARGET_JSON_FILE);
 const WORKSPACE_DIR = path.resolve(process.env.OPENCLAW_WORKSPACE_DIR || path.join(ROOT_DIR, 'data', 'workspace'));
 
+function resolveAllowedModelHosts() {
+    const raw = (process.env.OPENCLAW_ALLOWED_MODEL_HOSTS || '').trim();
+    if (!raw) {
+        return new Set(DEFAULT_ALLOWED_MODEL_HOSTS);
+    }
+
+    return new Set(
+        raw
+            .split(',')
+            .map((entry) => entry.trim().toLowerCase())
+            .filter(Boolean)
+    );
+}
+
+function isPrivateIpv4(hostname) {
+    const match = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(hostname);
+    if (!match) {
+        return false;
+    }
+
+    const octets = match.slice(1).map((value) => Number(value));
+    if (octets.some((value) => Number.isNaN(value) || value < 0 || value > 255)) {
+        return false;
+    }
+
+    return (
+        octets[0] === 10 ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168) ||
+        (octets[0] === 127)
+    );
+}
+
+function isAllowedModelHost(hostname, allowedHosts) {
+    if (!hostname) {
+        return false;
+    }
+
+    const normalizedHost = hostname.trim().toLowerCase();
+    return allowedHosts.has(normalizedHost) || isPrivateIpv4(normalizedHost);
+}
+
+function assertRestrictedModelEndpoints(config) {
+    const providers = config?.models?.providers;
+    if (!providers || typeof providers !== 'object') {
+        return;
+    }
+
+    const allowedHosts = resolveAllowedModelHosts();
+    for (const [providerId, providerConfig] of Object.entries(providers)) {
+        const baseUrl = typeof providerConfig?.baseUrl === 'string' ? providerConfig.baseUrl.trim() : '';
+        if (!baseUrl) {
+            continue;
+        }
+
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(baseUrl);
+        } catch {
+            throw new Error(`模型提供方 ${providerId} 的 baseUrl 非法: ${baseUrl}`);
+        }
+
+        if (!isAllowedModelHost(parsedUrl.hostname, allowedHosts)) {
+            throw new Error(
+                `模型提供方 ${providerId} 指向了未授权主机 ${parsedUrl.hostname}，已阻止启动`
+            );
+        }
+    }
+}
+
+function resolveDefaultModelRef(config) {
+    const raw = config?.agents?.defaults?.model;
+    if (typeof raw === 'string') {
+        return raw.trim();
+    }
+    if (raw && typeof raw === 'object' && typeof raw.primary === 'string') {
+        return raw.primary.trim();
+    }
+    return '';
+}
+
+function buildConfiguredModelAllowlist(config) {
+    const allowlist = {};
+    const providers = config?.models?.providers;
+    if (!providers || typeof providers !== 'object') {
+        return allowlist;
+    }
+
+    for (const [providerId, providerConfig] of Object.entries(providers)) {
+        if (!providerId || !Array.isArray(providerConfig?.models)) {
+            continue;
+        }
+        for (const model of providerConfig.models) {
+            const modelId = typeof model?.id === 'string' ? model.id.trim() : '';
+            if (!modelId) {
+                continue;
+            }
+            allowlist[`${providerId}/${modelId}`] = {};
+        }
+    }
+
+    const defaultModelRef = resolveDefaultModelRef(config);
+    if (defaultModelRef.includes('/')) {
+        allowlist[defaultModelRef] = allowlist[defaultModelRef] || {};
+    }
+
+    return allowlist;
+}
+
+function resolveBundledVersion() {
+    try {
+        return fs.readFileSync(VERSION_FILE, 'utf8').trim();
+    } catch {
+        return '';
+    }
+}
+
 // ==================== 步骤 1: 生成并部署配置文件 ====================
 function setupConfig() {
     console.log('📝 [1/2] 正在基于最新模板初始化并覆盖配置文件...');
 
     try {
         let existingToken = null;
+        let previousConfig = null;
         let whoami = 'unknown';
 
         try {
@@ -37,8 +157,8 @@ function setupConfig() {
 
         if (fs.existsSync(TARGET_JSON_FILE)) {
             try {
-                const oldConfig = JSON.parse(fs.readFileSync(TARGET_JSON_FILE, 'utf8'));
-                existingToken = oldConfig?.gateway?.auth?.token;
+                previousConfig = JSON.parse(fs.readFileSync(TARGET_JSON_FILE, 'utf8'));
+                existingToken = previousConfig?.gateway?.auth?.token;
                 if (existingToken) {
                     console.log(`   - 🔄 从旧配置中成功提取已有 Token: ${existingToken.substring(0, 8)}...`);
                 }
@@ -75,7 +195,8 @@ function setupConfig() {
         }
 
         if (!config.browser) config.browser = {};
-        config.browser.enabled = true;
+        config.browser.enabled = false;
+        console.log('   - 🔒 已禁用 browser 工具，避免默认外网访问能力');
 
         if (!config.skills) config.skills = {};
         if (!config.skills.load) config.skills.load = {};
@@ -87,6 +208,23 @@ function setupConfig() {
         if (!config.agents) config.agents = {};
         if (!config.agents.defaults) config.agents.defaults = {};
         config.agents.defaults.workspace = WORKSPACE_DIR;
+        const modelAllowlist = buildConfiguredModelAllowlist(config);
+        if (Object.keys(modelAllowlist).length > 0) {
+            config.agents.defaults.models = modelAllowlist;
+            console.log(
+                `   - 🎯 已同步模型白名单，仅保留已配置模型: ${Object.keys(modelAllowlist).join(', ')}`
+            );
+        }
+
+        assertRestrictedModelEndpoints(config);
+        console.log(`   - 🛡️ 已校验模型出口，仅允许内网/白名单主机: ${Array.from(resolveAllowedModelHosts()).join(', ')}`);
+
+        const bundledVersion = resolveBundledVersion();
+        config.meta = {
+            ...(previousConfig?.meta && typeof previousConfig.meta === 'object' ? previousConfig.meta : {}),
+            ...(bundledVersion ? { lastTouchedVersion: bundledVersion } : {}),
+            lastTouchedAt: new Date().toISOString(),
+        };
 
         if (!fs.existsSync(TARGET_JSON_DIR)) {
             fs.mkdirSync(TARGET_JSON_DIR, { recursive: true });
@@ -107,6 +245,11 @@ function setupConfig() {
 
 // ==================== 步骤 2: 注册到服务端 ====================
 async function registerToServer(token) {
+    if (!ENABLE_GATEWAY_REGISTRATION) {
+        console.log('📡 [2/2] 已跳过服务端注册（默认禁用外部网络调用）');
+        return;
+    }
+
     console.log('📡 [2/2] 正在向服务端注册...');
 
     try {
