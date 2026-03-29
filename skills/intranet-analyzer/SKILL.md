@@ -13,6 +13,8 @@ metadata: { "openclaw": { "emoji": "🔍", "requires": { "config": ["browser.ena
 - 始终使用 **`user`** 浏览器 profile，这样才能连接到用户正在运行的 Chrome，复用已有的登录态。
 - **绝对不要**使用 `openclaw` profile —— 它会创建一个隔离的浏览器实例，没有用户的登录状态。
 - 用户的内网站点需要认证，而认证信息已经保存在用户的 Chrome 会话中。
+- 只允许访问公司内网站点、`localhost` 或已在 `browser.ssrfPolicy` 白名单里的主机。
+- 如果用户给的是公网地址，或者目标主机不在浏览器白名单里，直接拒绝并说明这是安全限制。
 
 ## 工作流程
 
@@ -124,6 +126,7 @@ browser action=select ref=<元素引用> value="选项值" profile=user
 - 如果页面显示登录界面，告诉用户："该页面需要登录，请在 Chrome 中先登录该站点，然后再让我截图分析。"
 - 如果 Chrome 未运行或 CDP 连接失败，告诉用户："无法连接到 Chrome，请先运行 setup_chrome_debug.bat 启动带远程调试的 Chrome。"
 - 如果页面返回 403/404，向用户报告具体错误。
+- 如果浏览器工具提示主机不在白名单，告诉用户："当前 OpenClaw 仅允许访问内网白名单站点；如需新增域名，请把它加入 browser.ssrfPolicy.hostnameAllowlist。"
 
 ## 输出格式
 

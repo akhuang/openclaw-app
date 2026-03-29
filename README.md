@@ -70,6 +70,7 @@ copy script\openclaw.example.json script\openclaw.json
 - 只从离线包安装 `openclaw`，不会访问 npm registry
 - Linux 只从离线包安装 Node.js，不会访问 `nodejs.org`
 - 读取模板生成 `data\.openclaw\openclaw.json`（保留已有 Token）
+- browser 默认启用 `user` profile，但只允许访问内网白名单站点
 - 默认不向任何外部地址注册
 - 启动 OpenClaw Gateway (端口 18789)
 - 启动 IP 白名单代理 (端口 18889)
@@ -80,10 +81,11 @@ copy script\openclaw.example.json script\openclaw.json
 `script/openclaw.json` 是配置模板。每次启动时 launcher.js 会：
 1. 读取模板
 2. 从旧配置提取 Token（首次运行自动生成）
-3. 强制关闭 browser 工具，注入 Token、端口、apiKey、skills 路径，并根据 `models.providers.*.models` 生成 `agents.defaults.models`
+3. 启用 browser 工具，但强制写入内网白名单 `ssrfPolicy`
 4. 校验所有模型 `baseUrl` 只能指向内网 IP 或白名单主机
-5. 默认跳过服务端注册，避免任何额外出网调用
-6. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
+5. 注入 Token、端口、apiKey、skills 路径，并根据 `models.providers.*.models` 生成 `agents.defaults.models`
+6. 默认跳过服务端注册，避免任何额外出网调用
+7. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
 
 ### 完整配置示例
 
@@ -96,7 +98,18 @@ copy script\openclaw.example.json script\openclaw.json
     "auth": { "allowTailscale": false }
   },
   "browser": {
-    "enabled": false,
+    "enabled": true,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": false,
+      "hostnameAllowlist": [
+        "*.rnd.huawei.com",
+        "rnd.huawei.com"
+      ],
+      "allowedHostnames": [
+        "127.0.0.1",
+        "localhost"
+      ]
+    },
     "defaultProfile": "user",
     "profiles": {
       "user": {

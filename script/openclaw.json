@@ -12,7 +12,18 @@
     }
   },
   "browser": {
-    "enabled": false,
+    "enabled": true,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": false,
+      "hostnameAllowlist": [
+        "*.rnd.huawei.com",
+        "rnd.huawei.com"
+      ],
+      "allowedHostnames": [
+        "127.0.0.1",
+        "localhost"
+      ]
+    },
     "defaultProfile": "user",
     "profiles": {
       "user": {

@@ -9,6 +9,8 @@ const EXTERNAL_PORT = 18889;
 const SERVER_URL = 'http://xiaoluban.rnd.huawei.com:80/y/llm/register-gateway';
 const ENABLE_GATEWAY_REGISTRATION = process.env.OPENCLAW_ENABLE_GATEWAY_REGISTRATION === '1';
 const DEFAULT_ALLOWED_MODEL_HOSTS = ['127.0.0.1', 'localhost', 'xiaoluban.rnd.huawei.com'];
+const DEFAULT_BROWSER_HOSTNAME_ALLOWLIST = ['*.rnd.huawei.com', 'rnd.huawei.com'];
+const DEFAULT_BROWSER_ALLOWED_HOSTNAMES = ['127.0.0.1', 'localhost'];
 
 // ==================== 全局变量 ====================
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -23,10 +25,10 @@ const TARGET_JSON_FILE = path.resolve(
 const TARGET_JSON_DIR = path.dirname(TARGET_JSON_FILE);
 const WORKSPACE_DIR = path.resolve(process.env.OPENCLAW_WORKSPACE_DIR || path.join(ROOT_DIR, 'data', 'workspace'));
 
-function resolveAllowedModelHosts() {
-    const raw = (process.env.OPENCLAW_ALLOWED_MODEL_HOSTS || '').trim();
+function resolveCommaSeparatedSet(envKey, defaults) {
+    const raw = (process.env[envKey] || '').trim();
     if (!raw) {
-        return new Set(DEFAULT_ALLOWED_MODEL_HOSTS);
+        return new Set(defaults);
     }
 
     return new Set(
@@ -34,6 +36,28 @@ function resolveAllowedModelHosts() {
             .split(',')
             .map((entry) => entry.trim().toLowerCase())
             .filter(Boolean)
+    );
+}
+
+function resolveAllowedModelHosts() {
+    return resolveCommaSeparatedSet('OPENCLAW_ALLOWED_MODEL_HOSTS', DEFAULT_ALLOWED_MODEL_HOSTS);
+}
+
+function resolveBrowserHostnameAllowlist() {
+    return Array.from(
+        resolveCommaSeparatedSet(
+            'OPENCLAW_BROWSER_HOSTNAME_ALLOWLIST',
+            DEFAULT_BROWSER_HOSTNAME_ALLOWLIST
+        )
+    );
+}
+
+function resolveBrowserAllowedHostnames() {
+    return Array.from(
+        resolveCommaSeparatedSet(
+            'OPENCLAW_BROWSER_ALLOWED_HOSTNAMES',
+            DEFAULT_BROWSER_ALLOWED_HOSTNAMES
+        )
     );
 }
 
@@ -132,6 +156,25 @@ function buildConfiguredModelAllowlist(config) {
     return allowlist;
 }
 
+function applyBrowserSecurityPolicy(config) {
+    if (!config.browser || typeof config.browser !== 'object') {
+        config.browser = {};
+    }
+
+    const ssrfPolicy =
+        config.browser.ssrfPolicy && typeof config.browser.ssrfPolicy === 'object'
+            ? config.browser.ssrfPolicy
+            : {};
+
+    config.browser.enabled = true;
+    config.browser.ssrfPolicy = {
+        ...ssrfPolicy,
+        dangerouslyAllowPrivateNetwork: false,
+        hostnameAllowlist: resolveBrowserHostnameAllowlist(),
+        allowedHostnames: resolveBrowserAllowedHostnames(),
+    };
+}
+
 function resolveBundledVersion() {
     try {
         return fs.readFileSync(VERSION_FILE, 'utf8').trim();
@@ -194,9 +237,10 @@ function setupConfig() {
             console.log(`   - 🔑 检测到模板中的 apiKey 已被自定义，保留模板值: ${templateApiKey}`);
         }
 
-        if (!config.browser) config.browser = {};
-        config.browser.enabled = false;
-        console.log('   - 🔒 已禁用 browser 工具，避免默认外网访问能力');
+        applyBrowserSecurityPolicy(config);
+        console.log(
+            `   - 🔒 已启用 browser 工具，但仅允许内网白名单站点: ${config.browser.ssrfPolicy.hostnameAllowlist.join(', ')}`
+        );
 
         if (!config.skills) config.skills = {};
         if (!config.skills.load) config.skills.load = {};
