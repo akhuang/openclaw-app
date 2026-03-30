@@ -4,8 +4,6 @@ const path = require('path');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DEFAULT_NPM_PREFIX = path.join(ROOT_DIR, 'runtime', 'npm-global');
 const NPM_PREFIX = path.resolve(process.env.OC_NPM_PREFIX || DEFAULT_NPM_PREFIX);
-const OPENCLAW_DIR = path.join(NPM_PREFIX, 'lib', 'node_modules', 'openclaw');
-const ASSETS_DIR = path.join(OPENCLAW_DIR, 'dist', 'control-ui', 'assets');
 const VERSION_FILE = path.join(ROOT_DIR, 'openclaw.version');
 
 const ABORT_BUTTON_OLD = 'canAbort:!!e.chatRunId';
@@ -17,20 +15,46 @@ const STOP_PHRASES_OLD =
 const STOP_PHRASES_NEW =
     'return n===`/stop`?!0:n===`stop`||n===`esc`||n===`abort`||n===`wait`||n===`exit`||n===`interrupt`||n===`stop action`||n===`stop run`||n===`stop openclaw`||n===`please stop`';
 
+function resolveOpenClawDir() {
+    const candidates = [
+        path.join(NPM_PREFIX, 'lib', 'node_modules', 'openclaw'),
+        path.join(NPM_PREFIX, 'node_modules', 'openclaw'),
+    ];
+
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
 function findControlUiBundle() {
-    if (!fs.existsSync(ASSETS_DIR)) {
-        throw new Error(`找不到 Control UI 目录: ${ASSETS_DIR}`);
+    const openclawDir = resolveOpenClawDir();
+    if (!openclawDir) {
+        console.warn(
+            `[警告] Control UI 停止补丁已跳过: 未找到 openclaw 安装目录 (已检查 ${NPM_PREFIX} 下的 lib/node_modules 和 node_modules)`
+        );
+        return null;
+    }
+
+    const assetsDir = path.join(openclawDir, 'dist', 'control-ui', 'assets');
+    if (!fs.existsSync(assetsDir)) {
+        console.warn(`[警告] Control UI 停止补丁已跳过: 找不到 Control UI 目录: ${assetsDir}`);
+        return null;
     }
 
     const bundleName = fs
-        .readdirSync(ASSETS_DIR)
+        .readdirSync(assetsDir)
         .find((entry) => /^index-.*\.js$/.test(entry) && !entry.endsWith('.js.map'));
 
     if (!bundleName) {
-        throw new Error(`找不到 Control UI 主 bundle: ${ASSETS_DIR}`);
+        console.warn(`[警告] Control UI 停止补丁已跳过: 找不到 Control UI 主 bundle: ${assetsDir}`);
+        return null;
     }
 
-    return path.join(ASSETS_DIR, bundleName);
+    return path.join(assetsDir, bundleName);
 }
 
 function replaceOnce(content, from, to, label) {
@@ -51,7 +75,12 @@ function replaceOnce(content, from, to, label) {
 }
 
 function readInstalledVersion() {
-    const pkgJson = path.join(OPENCLAW_DIR, 'package.json');
+    const openclawDir = resolveOpenClawDir();
+    if (!openclawDir) {
+        return 'unknown';
+    }
+
+    const pkgJson = path.join(openclawDir, 'package.json');
     if (!fs.existsSync(pkgJson)) {
         return 'unknown';
     }
@@ -78,6 +107,10 @@ function readBundledVersion() {
 
 function main() {
     const bundlePath = findControlUiBundle();
+    if (!bundlePath) {
+        return;
+    }
+
     const installedVersion = readInstalledVersion();
     const bundledVersion = readBundledVersion();
 
