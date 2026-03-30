@@ -39,15 +39,21 @@ expect_contains "$ROOT/install.bat" "openclaw.version"
 expect_contains "$ROOT/run.bat" 'set "OPENCLAW_STATE_DIR=!OC_STATE_DIR!"'
 expect_contains "$ROOT/run.bat" 'set "OPENCLAW_CONFIG_PATH=!OC_CONFIG_PATH!"'
 expect_contains "$ROOT/run.bat" 'set "OPENCLAW_WORKSPACE_DIR=!OC_WORKSPACE_DIR!"'
+expect_contains "$ROOT/run.bat" 'script\open-dashboard.js'
+expect_contains "$ROOT/run.bat" 'script\patch-openclaw-runtime.js'
 expect_contains "$ROOT/install.bat" 'set "OPENCLAW_STATE_DIR=!OC_STATE_DIR!"'
 expect_contains "$ROOT/install.bat" 'set "OPENCLAW_CONFIG_PATH=!OC_CONFIG_PATH!"'
 expect_contains "$ROOT/install.bat" 'set "OPENCLAW_WORKSPACE_DIR=!OC_WORKSPACE_DIR!"'
+expect_contains "$ROOT/install.bat" 'script\patch-openclaw-runtime.js'
 expect_contains "$ROOT/run.sh" 'export OPENCLAW_STATE_DIR="$OC_STATE_DIR"'
 expect_contains "$ROOT/run.sh" 'export OPENCLAW_CONFIG_PATH="$OC_CONFIG_PATH"'
 expect_contains "$ROOT/run.sh" 'export OPENCLAW_WORKSPACE_DIR="$OC_WORKSPACE_DIR"'
+expect_contains "$ROOT/run.sh" 'script/patch-openclaw-runtime.js'
+expect_contains "$ROOT/run.sh" '[异常] Control UI 补丁应用失败'
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_STATE_DIR"
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_CONFIG_PATH"
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_WORKSPACE_DIR"
+expect_contains "$ROOT/script/patch-openclaw-runtime.js" "openclaw.version"
 
 expect_contains "$ROOT/run.bat" "pkg\\openclaw-!REQUIRED_VER!.tgz"
 expect_contains "$ROOT/run.sh" "pkg/openclaw-\${REQUIRED_VER}.tgz"
@@ -64,12 +70,15 @@ expect_contains "$ROOT/README.md" "openclaw.version"
 expect_contains "$ROOT/build/README.md" "openclaw.version"
 
 expect_missing "$ROOT/run.bat" "2026.3.13"
+expect_missing "$ROOT/run.bat" 'timeout /t 5 /nobreak >nul && start http://127.0.0.1:18789'
 expect_missing "$ROOT/run.sh" "2026.3.13"
 expect_missing "$ROOT/install.bat" "2026.3.13"
 expect_missing "$ROOT/README.md" "2026.3.13"
 expect_missing "$ROOT/build/README.md" "2026.3.13"
 expect_missing "$ROOT/README.md" "~/.openclaw/openclaw.json"
 
+[ -f "$ROOT/script/open-dashboard.js" ] || fail "missing dashboard auto-open helper: $ROOT/script/open-dashboard.js"
+[ -f "$ROOT/script/patch-openclaw-runtime.js" ] || fail "missing runtime patch helper: $ROOT/script/patch-openclaw-runtime.js"
 [ -f "$TGZ" ] || fail "missing bundled package: $TGZ"
 [ -f "$NODE_EXE" ] || fail "missing bundled node executable: $NODE_EXE"
 [ -f "$NPM_CMD" ] || fail "missing bundled npm command: $NPM_CMD"

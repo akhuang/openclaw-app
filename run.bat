@@ -133,6 +133,17 @@ if "!NEED_INSTALL!"=="1" (
     echo [安装] openclaw CLI 安装成功
 )
 
+:: ============================================================
+:: 步骤 0.5: 修复 Control UI 停止任务失效问题
+:: ============================================================
+echo.
+"!OC_NODE!" --no-warnings script\patch-openclaw-runtime.js
+if errorlevel 1 (
+    echo [异常] Control UI 补丁应用失败
+    pause
+    exit /b 1
+)
+
 :: 检查模板配置
 if not exist "script\openclaw.json" (
     echo [错误] 找不到配置模板 script\openclaw.json
@@ -178,9 +189,9 @@ echo [启动] 启动安全代理...
 start /b "" "!OC_NODE!" --no-warnings script\proxy.js
 
 :: ============================================================
-:: 步骤 4: 延迟打开浏览器 (后台等5秒再开)
+:: 步骤 4: 等待 Gateway 就绪后自动打开已认证的控制台
 :: ============================================================
-start /b cmd /c "timeout /t 5 /nobreak >nul && start http://127.0.0.1:18789"
+start /b "" "!OC_NODE!" --no-warnings script\open-dashboard.js
 
 :: ============================================================
 :: 步骤 5: 前台启动 Gateway (窗口保持不关)
@@ -188,7 +199,8 @@ start /b cmd /c "timeout /t 5 /nobreak >nul && start http://127.0.0.1:18789"
 echo [启动] 启动 OpenClaw Gateway...
 echo.
 echo ============================================
-echo   访问地址: http://127.0.0.1:18789
+echo   本地地址: http://127.0.0.1:18789
+echo   浏览器会在 Gateway 就绪后自动带 Token 打开
 echo   代理端口: 18889
 echo   按 Ctrl+C 停止
 echo ============================================

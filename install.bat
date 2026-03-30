@@ -95,6 +95,19 @@ if not exist "!OPENCLAW_ENTRY!" (
 echo.
 echo [验证] 检查安装结果...
 call "!OPENCLAW_CMD!" --version
+if errorlevel 1 (
+    echo [错误] openclaw 版本校验失败
+    pause
+    exit /b 1
+)
+
+echo.
+"!OC_NODE!" --no-warnings script\patch-openclaw-runtime.js
+if errorlevel 1 (
+    echo [错误] Control UI 补丁应用失败
+    pause
+    exit /b 1
+)
 
 echo.
 echo ============================================
