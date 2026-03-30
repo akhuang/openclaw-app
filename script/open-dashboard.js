@@ -106,29 +106,107 @@ async function waitForGateway(cleanUrl, timeoutMs) {
     );
 }
 
-function spawnDetached(command, args) {
-    const child = spawn(command, args, {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
+function spawnAndWait(command, args) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            detached: false,
+            shell: false,
+            stdio: 'ignore',
+            windowsHide: true,
+        });
+
+        let settled = false;
+
+        child.once('error', (error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            reject(error);
+        });
+
+        child.once('exit', (code, signal) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+
+            if (code === 0) {
+                resolve();
+                return;
+            }
+
+            if (signal) {
+                reject(new Error(`${command} 被信号终止: ${signal}`));
+                return;
+            }
+
+            reject(new Error(`${command} 退出码 ${String(code)}`));
+        });
     });
-    child.on('error', () => {});
-    child.unref();
 }
 
-function openInBrowser(url) {
-    if (process.platform === 'win32') {
-        const safeUrl = url.replace(/"/g, '""');
-        spawnDetached('cmd.exe', ['/d', '/s', '/c', `start "" "${safeUrl}"`]);
-        return;
+function escapePowerShellString(value) {
+    return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+async function openInBrowser(url) {
+    const attempts =
+        process.platform === 'win32'
+            ? [
+                  {
+                      label: 'cmd start',
+                      command: 'cmd.exe',
+                      args: ['/d', '/s', '/c', `start "" "${url.replace(/"/g, '""')}"`],
+                  },
+                  {
+                      label: 'powershell Start-Process',
+                      command: 'powershell.exe',
+                      args: [
+                          '-NoProfile',
+                          '-NonInteractive',
+                          '-Command',
+                          `Start-Process ${escapePowerShellString(url)}`,
+                      ],
+                  },
+                  {
+                      label: 'explorer',
+                      command: 'explorer.exe',
+                      args: [url],
+                  },
+              ]
+            : process.platform === 'darwin'
+              ? [
+                    {
+                        label: 'open',
+                        command: 'open',
+                        args: [url],
+                    },
+                ]
+              : [
+                    {
+                        label: 'xdg-open',
+                        command: 'xdg-open',
+                        args: [url],
+                    },
+                    {
+                        label: 'gio open',
+                        command: 'gio',
+                        args: ['open', url],
+                    },
+                ];
+
+    const errors = [];
+    for (const attempt of attempts) {
+        try {
+            await spawnAndWait(attempt.command, attempt.args);
+            return attempt.label;
+        } catch (error) {
+            errors.push(`${attempt.label}: ${error.message}`);
+        }
     }
 
-    if (process.platform === 'darwin') {
-        spawnDetached('open', [url]);
-        return;
-    }
-
-    spawnDetached('xdg-open', [url]);
+    throw new Error(errors.join(' | '));
 }
 
 async function main() {
@@ -144,11 +222,20 @@ async function main() {
         console.warn('[警告] 未在配置中解析到 gateway.auth.token，将打开未附带 token 的地址');
     }
 
-    openInBrowser(loginUrl);
-    console.log('[启动] 已自动打开 OpenClaw 控制台');
+    const launcher = await openInBrowser(loginUrl);
+    console.log(`[启动] 已请求系统打开 OpenClaw 控制台: ${loginUrl} (${launcher})`);
 }
 
 main().catch((error) => {
-    console.warn(`[警告] 未自动打开浏览器: ${error.message}`);
+    let message = error.message;
+    if (!message && typeof error === 'object' && error) {
+        message = String(error);
+    }
+    console.warn(`[警告] 未自动打开浏览器: ${message}`);
+    try {
+        const config = readConfig();
+        const dashboard = resolveDashboardConfig(config);
+        console.warn(`[警告] 请手动打开: ${buildDashboardUrl(dashboard)}`);
+    } catch {}
     process.exit(0);
 });
