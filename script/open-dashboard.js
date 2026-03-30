@@ -222,6 +222,7 @@ async function main() {
         console.warn('[警告] 未在配置中解析到 gateway.auth.token，将打开未附带 token 的地址');
     }
 
+    console.log(`[启动] OpenClaw 控制台地址: ${loginUrl}`);
     const launcher = await openInBrowser(loginUrl);
     console.log(`[启动] 已请求系统打开 OpenClaw 控制台: ${loginUrl} (${launcher})`);
 }
