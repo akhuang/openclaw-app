@@ -16,8 +16,8 @@
     "ssrfPolicy": {
       "dangerouslyAllowPrivateNetwork": false,
       "hostnameAllowlist": [
-        "*.rnd.huawei.com",
-        "rnd.huawei.com"
+        "*.huawei.com",
+        "huawei.com"
       ],
       "allowedHostnames": [
         "127.0.0.1",

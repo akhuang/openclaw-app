@@ -60,6 +60,16 @@ set "OPENCLAW_WORKSPACE_DIR=!OC_WORKSPACE_DIR!"
 set "OC_LOCAL_NPM=!OC_NPM!"
 set "OC_LOCAL_OPENCLAW_CMD=!OPENCLAW_CMD!"
 
+for /f "usebackq delims=" %%i in (`"!OC_NODE!" --no-warnings script\print-dotenv.js --format=cmd`) do %%i
+if exist ".env" echo [信息] 已加载 .env 配置
+if exist ".env.local" echo [信息] 已加载 .env.local 配置
+
+set "OPENCLAW_EXTRA_ARGS="
+if defined OPENCLAW_LOG_LEVEL (
+    set "OPENCLAW_EXTRA_ARGS=--log-level !OPENCLAW_LOG_LEVEL!"
+    echo [信息] OpenClaw 日志级别: !OPENCLAW_LOG_LEVEL!
+)
+
 for /f "tokens=*" %%v in ('"!OC_NODE!" --version 2^>nul') do echo [信息] Node.js 版本: %%v
 for /f "tokens=*" %%v in ('"!OC_NPM!" --version 2^>nul') do echo [信息] npm 版本: %%v
 echo [信息] OpenClaw 状态目录: !OPENCLAW_STATE_DIR!
@@ -179,7 +189,7 @@ if exist "extensions\welink\package.json" (
 :: ============================================================
 :: 步骤 2: 停掉可能残留的旧 Gateway
 :: ============================================================
-call "!OPENCLAW_CMD!" gateway stop >nul 2>&1
+call "!OPENCLAW_CMD!" !OPENCLAW_EXTRA_ARGS! gateway stop >nul 2>&1
 
 :: ============================================================
 :: 步骤 3: 启动代理 (后台)
@@ -206,7 +216,7 @@ echo   按 Ctrl+C 停止
 echo ============================================
 echo.
 
-call "!OPENCLAW_CMD!" gateway run --port 18789
+call "!OPENCLAW_CMD!" !OPENCLAW_EXTRA_ARGS! gateway run --port 18789
 
 echo.
 echo [INFO] OpenClaw 已停止

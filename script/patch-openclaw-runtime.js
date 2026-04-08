@@ -1,10 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const { envFlag, loadEnv } = require('./dotenv');
+
+loadEnv();
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DEFAULT_NPM_PREFIX = path.join(ROOT_DIR, 'runtime', 'npm-global');
 const NPM_PREFIX = path.resolve(process.env.OC_NPM_PREFIX || DEFAULT_NPM_PREFIX);
 const VERSION_FILE = path.join(ROOT_DIR, 'openclaw.version');
+const SKIP_RUNTIME_PATCH = envFlag('OPENCLAW_SKIP_RUNTIME_PATCH', false);
 
 const ABORT_BUTTON_OLD = 'canAbort:!!e.chatRunId';
 const ABORT_BUTTON_NEW =
@@ -106,6 +110,11 @@ function readBundledVersion() {
 }
 
 function main() {
+    if (SKIP_RUNTIME_PATCH) {
+        console.log('[修复] 已按环境配置跳过 Control UI 停止补丁');
+        return;
+    }
+
     const bundlePath = findControlUiBundle();
     if (!bundlePath) {
         return;

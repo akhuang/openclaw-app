@@ -54,6 +54,10 @@ set "OPENCLAW_STATE_DIR=!OC_STATE_DIR!"
 set "OPENCLAW_CONFIG_PATH=!OC_CONFIG_PATH!"
 set "OPENCLAW_WORKSPACE_DIR=!OC_WORKSPACE_DIR!"
 
+for /f "usebackq delims=" %%i in (`"!OC_NODE!" --no-warnings script\print-dotenv.js --format=cmd`) do %%i
+if exist ".env" echo [信息] 已加载 .env 配置
+if exist ".env.local" echo [信息] 已加载 .env.local 配置
+
 for /f "tokens=*" %%v in ('"!OC_NODE!" --version') do echo [信息] Node.js 版本: %%v
 for /f "tokens=*" %%v in ('"!OC_NPM!" --version') do echo [信息] npm 版本: %%v
 echo [信息] OpenClaw 状态目录: !OPENCLAW_STATE_DIR!

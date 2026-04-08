@@ -24,6 +24,29 @@ export OPENCLAW_WORKSPACE_DIR="$OC_WORKSPACE_DIR"
 export OC_LOCAL_NPM="${OC_ROOT}/bin/npm"
 export OC_LOCAL_OPENCLAW_CMD="$OPENCLAW_CMD"
 
+load_dotenv() {
+    local node_cmd=""
+
+    if [ -x "$OC_ROOT/bin/node" ]; then
+        node_cmd="$OC_ROOT/bin/node"
+    elif command -v node &>/dev/null; then
+        node_cmd="$(command -v node)"
+    else
+        return
+    fi
+
+    if [ ! -f "$OC_ROOT/script/print-dotenv.js" ]; then
+        return
+    fi
+
+    local dotenv_exports
+    dotenv_exports="$("$node_cmd" --no-warnings "$OC_ROOT/script/print-dotenv.js" --format=sh)"
+    if [ -n "$dotenv_exports" ]; then
+        eval "$dotenv_exports"
+        echo "[信息] 已加载 .env 配置"
+    fi
+}
+
 echo "[信息] OpenClaw 状态目录: $OPENCLAW_STATE_DIR"
 echo "[信息] OpenClaw 配置文件: $OPENCLAW_CONFIG_PATH"
 echo "[信息] OpenClaw 工作区: $OPENCLAW_WORKSPACE_DIR"
@@ -88,6 +111,14 @@ if [ "$NEED_NODE_INSTALL" = "1" ]; then
     echo "[安装] Node.js $("$OC_ROOT/bin/node" --version) 安装完成"
 
     export PATH="$OC_ROOT/bin:$PATH"
+fi
+
+load_dotenv
+
+OPENCLAW_EXTRA_ARGS=()
+if [ -n "${OPENCLAW_LOG_LEVEL:-}" ]; then
+    OPENCLAW_EXTRA_ARGS+=(--log-level "$OPENCLAW_LOG_LEVEL")
+    echo "[信息] OpenClaw 日志级别: $OPENCLAW_LOG_LEVEL"
 fi
 
 # ============================================================
@@ -194,4 +225,4 @@ trap cleanup SIGINT SIGTERM EXIT
 echo "[启动] 启动 OpenClaw Gateway..."
 echo ""
 
-"$OPENCLAW_CMD" gateway run --port 18789
+"$OPENCLAW_CMD" "${OPENCLAW_EXTRA_ARGS[@]}" gateway run --port 18789

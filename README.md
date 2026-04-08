@@ -24,6 +24,7 @@ openclaw-app/
 │   └── workspace/           # OpenClaw 工作区
 ├── script/
 │   ├── launcher.js          # 启动器 (配置/注册/代理)
+│   ├── patch-openclaw-runtime.js # 修复内置 Control UI 已知行为问题
 │   ├── openclaw.json        # 配置模板 (必须)
 │   └── openclaw.example.json # 配置模板示例
 ├── skills/
@@ -74,7 +75,8 @@ copy script\openclaw.example.json script\openclaw.json
 - 默认不向任何外部地址注册
 - 启动 OpenClaw Gateway (端口 18789)
 - 启动 IP 白名单代理 (端口 18889)
-- 打开浏览器
+- 自动修复 Control UI 中“停止任务”按钮/命令的已知问题
+- 等待 Gateway 就绪后自动打开带 token 的浏览器地址（无需手工复制 token）
 
 ## 配置模板说明
 
@@ -102,8 +104,8 @@ copy script\openclaw.example.json script\openclaw.json
     "ssrfPolicy": {
       "dangerouslyAllowPrivateNetwork": false,
       "hostnameAllowlist": [
-        "*.rnd.huawei.com",
-        "rnd.huawei.com"
+        "*.huawei.com",
+        "huawei.com"
       ],
       "allowedHostnames": [
         "127.0.0.1",

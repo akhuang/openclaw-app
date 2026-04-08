@@ -53,7 +53,16 @@ expect_contains "$ROOT/run.sh" '[异常] Control UI 补丁应用失败'
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_STATE_DIR"
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_CONFIG_PATH"
 expect_contains "$ROOT/script/launcher.js" "process.env.OPENCLAW_WORKSPACE_DIR"
+expect_contains "$ROOT/script/launcher.js" "OPENCLAW_PRESERVE_CONFIG"
+expect_contains "$ROOT/script/launcher.js" "OPENCLAW_DISABLE_WELINK"
 expect_contains "$ROOT/script/patch-openclaw-runtime.js" "openclaw.version"
+expect_contains "$ROOT/script/patch-openclaw-runtime.js" "OPENCLAW_SKIP_RUNTIME_PATCH"
+expect_contains "$ROOT/script/setup-welink-plugin.js" "OPENCLAW_SKIP_WELINK_BOOTSTRAP"
+expect_contains "$ROOT/script/open-dashboard.js" "OPENCLAW_DISABLE_BROWSER_AUTO_OPEN"
+expect_contains "$ROOT/run.bat" 'script\print-dotenv.js --format=cmd'
+expect_contains "$ROOT/install.bat" 'script\print-dotenv.js --format=cmd'
+expect_contains "$ROOT/run.sh" 'script/print-dotenv.js" --format=sh'
+expect_contains "$ROOT/run.bat" 'set "OPENCLAW_EXTRA_ARGS=--log-level !OPENCLAW_LOG_LEVEL!"'
 
 expect_contains "$ROOT/run.bat" "pkg\\openclaw-!REQUIRED_VER!.tgz"
 expect_contains "$ROOT/run.sh" "pkg/openclaw-\${REQUIRED_VER}.tgz"
@@ -79,6 +88,9 @@ expect_missing "$ROOT/README.md" "~/.openclaw/openclaw.json"
 
 [ -f "$ROOT/script/open-dashboard.js" ] || fail "missing dashboard auto-open helper: $ROOT/script/open-dashboard.js"
 [ -f "$ROOT/script/patch-openclaw-runtime.js" ] || fail "missing runtime patch helper: $ROOT/script/patch-openclaw-runtime.js"
+[ -f "$ROOT/script/dotenv.js" ] || fail "missing dotenv helper: $ROOT/script/dotenv.js"
+[ -f "$ROOT/script/print-dotenv.js" ] || fail "missing dotenv export helper: $ROOT/script/print-dotenv.js"
+[ -f "$ROOT/.env.example" ] || fail "missing dotenv example: $ROOT/.env.example"
 [ -f "$TGZ" ] || fail "missing bundled package: $TGZ"
 [ -f "$NODE_EXE" ] || fail "missing bundled node executable: $NODE_EXE"
 [ -f "$NPM_CMD" ] || fail "missing bundled npm command: $NPM_CMD"

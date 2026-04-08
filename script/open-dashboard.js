@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { envFlag, loadEnv } = require('./dotenv');
+
+loadEnv();
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DEFAULT_PORT = 18789;
@@ -11,6 +14,7 @@ const DEFAULT_STATE_DIR = path.join(ROOT_DIR, 'data', '.openclaw');
 const CONFIG_PATH = path.resolve(
     process.env.OPENCLAW_CONFIG_PATH || path.join(DEFAULT_STATE_DIR, 'openclaw.json')
 );
+const DISABLE_BROWSER_AUTO_OPEN = envFlag('OPENCLAW_DISABLE_BROWSER_AUTO_OPEN', false);
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -210,6 +214,11 @@ async function openInBrowser(url) {
 }
 
 async function main() {
+    if (DISABLE_BROWSER_AUTO_OPEN) {
+        console.log('[启动] 已按环境配置跳过自动打开 OpenClaw 控制台');
+        return;
+    }
+
     const config = readConfig();
     const dashboard = resolveDashboardConfig(config);
     const cleanUrl = `http://127.0.0.1:${dashboard.port}${dashboard.basePath}`;

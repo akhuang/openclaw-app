@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { envFlag, loadEnv } = require('./dotenv');
+
+loadEnv();
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const VERSION_FILE = path.join(ROOT_DIR, 'openclaw.version');
@@ -9,6 +12,7 @@ const EXT_PACKAGE_JSON = path.join(EXT_DIR, 'package.json');
 const CONFIG_PATH = path.resolve(
     process.env.OPENCLAW_CONFIG_PATH || path.join(ROOT_DIR, 'data', '.openclaw', 'openclaw.json')
 );
+const SKIP_WELINK_BOOTSTRAP = envFlag('OPENCLAW_SKIP_WELINK_BOOTSTRAP', false);
 function resolveCommandFromEnv(envKey, fallback) {
     const value = (process.env[envKey] || '').trim();
     if (!value) return fallback;
@@ -271,6 +275,11 @@ function ensurePluginLinkedAndEnabled() {
 }
 
 function main() {
+    if (SKIP_WELINK_BOOTSTRAP) {
+        console.log('[welink] 已按环境配置跳过本地插件初始化');
+        return;
+    }
+
     if (!fs.existsSync(EXT_PACKAGE_JSON)) {
         console.log('[welink] 未找到 extensions/welink，跳过');
         return;

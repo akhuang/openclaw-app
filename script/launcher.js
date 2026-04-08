@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+const { envFlag, loadEnv } = require('./dotenv');
+
+loadEnv();
 
 // ==================== 配置区域 ====================
 const INTERNAL_PORT = 18789;
@@ -9,7 +12,7 @@ const EXTERNAL_PORT = 18889;
 const SERVER_URL = 'http://xiaoluban.rnd.huawei.com:80/y/llm/register-gateway';
 const ENABLE_GATEWAY_REGISTRATION = process.env.OPENCLAW_ENABLE_GATEWAY_REGISTRATION === '1';
 const DEFAULT_ALLOWED_MODEL_HOSTS = ['127.0.0.1', 'localhost', 'xiaoluban.rnd.huawei.com'];
-const DEFAULT_BROWSER_HOSTNAME_ALLOWLIST = ['*.rnd.huawei.com', 'rnd.huawei.com'];
+const DEFAULT_BROWSER_HOSTNAME_ALLOWLIST = ['*.huawei.com', 'huawei.com'];
 const DEFAULT_BROWSER_ALLOWED_HOSTNAMES = ['127.0.0.1', 'localhost'];
 
 // ==================== 全局变量 ====================
@@ -24,6 +27,34 @@ const TARGET_JSON_FILE = path.resolve(
 );
 const TARGET_JSON_DIR = path.dirname(TARGET_JSON_FILE);
 const WORKSPACE_DIR = path.resolve(process.env.OPENCLAW_WORKSPACE_DIR || path.join(ROOT_DIR, 'data', 'workspace'));
+const PRESERVE_CONFIG = envFlag('OPENCLAW_PRESERVE_CONFIG', true);
+const DISABLE_WELINK = envFlag('OPENCLAW_DISABLE_WELINK', false);
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeObjects(base, overlay) {
+    if (!isPlainObject(base)) {
+        return isPlainObject(overlay) ? { ...overlay } : overlay;
+    }
+    if (!isPlainObject(overlay)) {
+        return { ...base };
+    }
+
+    const merged = { ...base };
+    for (const [key, value] of Object.entries(overlay)) {
+        if (isPlainObject(value) && isPlainObject(base[key])) {
+            merged[key] = mergeObjects(base[key], value);
+        } else if (Array.isArray(value)) {
+            merged[key] = value.slice();
+        } else {
+            merged[key] = value;
+        }
+    }
+
+    return merged;
+}
 
 function resolveCommaSeparatedSet(envKey, defaults) {
     const raw = (process.env[envKey] || '').trim();
@@ -175,6 +206,34 @@ function applyBrowserSecurityPolicy(config) {
     };
 }
 
+function applyWelinkOverrides(config) {
+    if (!DISABLE_WELINK) {
+        return;
+    }
+
+    if (!config.channels || typeof config.channels !== 'object') {
+        config.channels = {};
+    }
+    if (!config.channels.welink || typeof config.channels.welink !== 'object') {
+        config.channels.welink = {};
+    }
+    config.channels.welink.enabled = false;
+
+    if (config.plugins && typeof config.plugins === 'object') {
+        if (Array.isArray(config.plugins.allow)) {
+            config.plugins.allow = config.plugins.allow.filter((entry) => entry !== 'welink');
+        }
+
+        if (config.plugins.entries && typeof config.plugins.entries === 'object') {
+            const currentEntry =
+                config.plugins.entries.welink && typeof config.plugins.entries.welink === 'object'
+                    ? config.plugins.entries.welink
+                    : {};
+            config.plugins.entries.welink = { ...currentEntry, enabled: false };
+        }
+    }
+}
+
 function resolveBundledVersion() {
     try {
         return fs.readFileSync(VERSION_FILE, 'utf8').trim();
@@ -185,7 +244,7 @@ function resolveBundledVersion() {
 
 // ==================== 步骤 1: 生成并部署配置文件 ====================
 function setupConfig() {
-    console.log('📝 [1/2] 正在基于最新模板初始化并覆盖配置文件...');
+    console.log('📝 [1/2] 正在基于模板初始化配置并同步关键字段...');
 
     try {
         let existingToken = null;
@@ -213,7 +272,15 @@ function setupConfig() {
         if (!fs.existsSync(TEMPLATE_JSON)) {
             throw new Error(`找不到模板文件: ${TEMPLATE_JSON}`);
         }
-        const config = JSON.parse(fs.readFileSync(TEMPLATE_JSON, 'utf8'));
+        const templateConfig = JSON.parse(fs.readFileSync(TEMPLATE_JSON, 'utf8'));
+        const config =
+            PRESERVE_CONFIG && previousConfig && typeof previousConfig === 'object'
+                ? mergeObjects(templateConfig, previousConfig)
+                : templateConfig;
+
+        if (PRESERVE_CONFIG && previousConfig && typeof previousConfig === 'object') {
+            console.log('   - ♻️ 已保留现有配置中的插件和自定义字段，仅同步模板关键项');
+        }
 
         const finalToken = existingToken || crypto.randomBytes(24).toString('hex');
         if (!existingToken) {
@@ -241,6 +308,11 @@ function setupConfig() {
         console.log(
             `   - 🔒 已启用 browser 工具，但仅允许内网白名单站点: ${config.browser.ssrfPolicy.hostnameAllowlist.join(', ')}`
         );
+
+        applyWelinkOverrides(config);
+        if (DISABLE_WELINK) {
+            console.log('   - 📴 已按环境配置禁用 Welink channel / plugin entry');
+        }
 
         if (!config.skills) config.skills = {};
         if (!config.skills.load) config.skills.load = {};
@@ -278,7 +350,7 @@ function setupConfig() {
         }
 
         fs.writeFileSync(TARGET_JSON_FILE, JSON.stringify(config, null, 2));
-        console.log(`   - 💾 配置文件已基于最新模板重新覆盖: ${TARGET_JSON_FILE}`);
+        console.log(`   - 💾 配置文件已写入: ${TARGET_JSON_FILE}`);
 
         return { token: finalToken };
     } catch (err) {
