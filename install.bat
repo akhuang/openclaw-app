@@ -106,14 +106,6 @@ if errorlevel 1 (
 )
 
 echo.
-"!OC_NODE!" --no-warnings script\patch-openclaw-runtime.js
-if errorlevel 1 (
-    echo [错误] Control UI 补丁应用失败
-    pause
-    exit /b 1
-)
-
-echo.
 echo ============================================
 echo   安装完成！启动请使用 run.bat
 echo ============================================
