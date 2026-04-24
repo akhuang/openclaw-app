@@ -58,6 +58,9 @@ expect_contains "$ROOT/script/launcher.js" "OPENCLAW_DISABLE_WELINK"
 expect_contains "$ROOT/script/patch-openclaw-runtime.js" "openclaw.version"
 expect_contains "$ROOT/script/patch-openclaw-runtime.js" "OPENCLAW_SKIP_RUNTIME_PATCH"
 expect_contains "$ROOT/script/setup-welink-plugin.js" "OPENCLAW_SKIP_WELINK_BOOTSTRAP"
+expect_contains "$ROOT/script/setup-welink-plugin.js" "OC_LOCAL_OPENCLAW_CMD"
+expect_contains "$ROOT/script/setup-welink-plugin.js" "拒绝使用 PATH 中的系统 openclaw"
+expect_missing "$ROOT/script/setup-welink-plugin.js" "const OPENCLAW_CMD = resolveCommandFromEnv('OC_LOCAL_OPENCLAW_CMD', 'openclaw')"
 expect_contains "$ROOT/script/open-dashboard.js" "OPENCLAW_DISABLE_BROWSER_AUTO_OPEN"
 expect_contains "$ROOT/run.bat" 'script\print-dotenv.js --format=cmd'
 expect_contains "$ROOT/install.bat" 'script\print-dotenv.js --format=cmd'

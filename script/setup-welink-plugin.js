@@ -13,16 +13,23 @@ const CONFIG_PATH = path.resolve(
     process.env.OPENCLAW_CONFIG_PATH || path.join(ROOT_DIR, 'data', '.openclaw', 'openclaw.json')
 );
 const SKIP_WELINK_BOOTSTRAP = envFlag('OPENCLAW_SKIP_WELINK_BOOTSTRAP', false);
-function resolveCommandFromEnv(envKey, fallback) {
-    const value = (process.env[envKey] || '').trim();
-    if (!value) return fallback;
-    if (value.includes(path.sep) || value.includes('/')) {
-        return fs.existsSync(value) ? value : fallback;
-    }
-    return value;
-}
 
-const OPENCLAW_CMD = resolveCommandFromEnv('OC_LOCAL_OPENCLAW_CMD', 'openclaw');
+function resolveLocalOpenClawCommand() {
+    const envKey = 'OC_LOCAL_OPENCLAW_CMD';
+    const value = (process.env[envKey] || '').trim();
+    if (!value) {
+        throw new Error(`${envKey} 未设置，拒绝使用 PATH 中的系统 openclaw`);
+    }
+    if (!/[\\/]/.test(value)) {
+        throw new Error(`${envKey} 必须是仓库内 openclaw 命令路径，不能是 PATH 命令名: ${value}`);
+    }
+
+    const commandPath = path.resolve(value);
+    if (!fs.existsSync(commandPath)) {
+        throw new Error(`${envKey} 指向的本地 openclaw 命令不存在: ${commandPath}`);
+    }
+    return commandPath;
+}
 
 function readJson(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -86,7 +93,7 @@ function resolveLocalTgz(version) {
 }
 
 function resolveInstalledOpenClawPackageDir() {
-    const openclawCmd = OPENCLAW_CMD;
+    const openclawCmd = resolveLocalOpenClawCommand();
     const basename = path.basename(openclawCmd).toLowerCase();
     let prefixDir = null;
 
