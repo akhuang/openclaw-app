@@ -211,6 +211,21 @@ copy script\openclaw.example.json script\openclaw.json
             "maxTokens": 8192
           }
         ]
+      },
+      "xlb": {
+        "baseUrl": "http://xiaoluban.rnd.huawei.com/y/llm/v1",
+        "apiKey": "openclaw",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+            "name": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API"
+          },
+          {
+            "id": "Qwen3.5-9B-Q4-OPENCLAW_API",
+            "name": "Qwen3.5-9B-Q4-OPENCLAW_API"
+          }
+        ]
       }
     }
   },
@@ -227,7 +242,9 @@ copy script\openclaw.example.json script\openclaw.json
         "local/MiniMax-M2.5": {},
         "local/Auto": {},
         "local/Qwen3-32B-All-V1": {},
-        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
+        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {},
+        "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API": {},
+        "xlb/Qwen3.5-9B-Q4-OPENCLAW_API": {}
       }
     }
   }
