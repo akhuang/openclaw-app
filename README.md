@@ -62,7 +62,7 @@ copy script\openclaw.example.json script\openclaw.json
 | `models.providers.local.baseUrl` | 本地 OpenAI-compatible LLM 服务地址；launcher 会拒绝未授权外网主机 |
 | `models.providers.local.apiKey` | 当前模板使用固定占位值 `openclaw`；也可改成任意非空字母串 |
 | `models.providers.local.models` | 可用模型列表；launcher 会据此生成只显示这些模型的 allowlist |
-| `agents.defaults.model` | 默认模型，如 `local/Auto`，必须在上面的模型列表内 |
+| `agents.defaults.model` | 默认模型，如 `local/MiniMax-M2.7`，必须在上面的模型列表内 |
 
 ### 3. 启动
 
@@ -190,13 +190,6 @@ copy script\openclaw.example.json script\openclaw.json
             "maxTokens": 24576
           },
           {
-            "id": "Auto",
-            "name": "Auto",
-            "contextWindow": 128000,
-            "contextTokens": 120000,
-            "maxTokens": 8000
-          },
-          {
             "id": "Qwen3-32B-All-V1",
             "name": "Qwen3-32B-All-V1",
             "contextWindow": 30000,
@@ -231,7 +224,13 @@ copy script\openclaw.example.json script\openclaw.json
   },
   "agents": {
     "defaults": {
-      "model": "local/Auto",
+      "model": {
+        "primary": "local/MiniMax-M2.7",
+        "fallbacks": [
+          "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+          "xlb/Qwen3.5-9B-Q4-OPENCLAW_API"
+        ]
+      },
       "models": {
         "local/MiniMax-M2.7": {},
         "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
@@ -240,7 +239,6 @@ copy script\openclaw.example.json script\openclaw.json
         "local/Qwen2.5-VL-72B-Instruct": {},
         "local/Qwen2.5-72B_QC3": {},
         "local/MiniMax-M2.5": {},
-        "local/Auto": {},
         "local/Qwen3-32B-All-V1": {},
         "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {},
         "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API": {},
