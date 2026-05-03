@@ -35,8 +35,8 @@
   },
   "models": {
     "providers": {
-      "xlb": {
-        "baseUrl": "http://xiaoluban.rnd.huawei.com/y/llm/v1",
+      "local": {
+        "baseUrl": "http://127.0.0.1:8081/v1",
         "apiKey": "openclaw",
         "api": "openai-completions",
         "models": [
@@ -120,18 +120,18 @@
   },
   "agents": {
     "defaults": {
-      "model": "xlb/Auto",
+      "model": "local/Auto",
       "models": {
-        "xlb/MiniMax-M2.7": {},
-        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
-        "xlb/DeepSeek_R1_Distill_Qwen_32B": {},
-        "xlb/Qwen3-Coder-30B-A3B-Instruct": {},
-        "xlb/Qwen2.5-VL-72B-Instruct": {},
-        "xlb/Qwen2.5-72B_QC3": {},
-        "xlb/MiniMax-M2.5": {},
-        "xlb/Auto": {},
-        "xlb/Qwen3-32B-All-V1": {},
-        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
+        "local/MiniMax-M2.7": {},
+        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
+        "local/DeepSeek_R1_Distill_Qwen_32B": {},
+        "local/Qwen3-Coder-30B-A3B-Instruct": {},
+        "local/Qwen2.5-VL-72B-Instruct": {},
+        "local/Qwen2.5-72B_QC3": {},
+        "local/MiniMax-M2.5": {},
+        "local/Auto": {},
+        "local/Qwen3-32B-All-V1": {},
+        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
       }
     }
   },

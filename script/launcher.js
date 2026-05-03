@@ -93,26 +93,29 @@ function syncTemplateModelCatalog(config, templateConfig) {
         config.models.providers = {};
     }
 
+    const currentProviders = config.models.providers;
+    const nextProviders = {};
     let synced = false;
     for (const [providerId, templateProvider] of Object.entries(templateProviders)) {
         if (!providerId || !templateProvider || typeof templateProvider !== 'object') {
             continue;
         }
         const currentProvider =
-            config.models.providers[providerId] && typeof config.models.providers[providerId] === 'object'
-                ? config.models.providers[providerId]
+            currentProviders[providerId] && typeof currentProviders[providerId] === 'object'
+                ? currentProviders[providerId]
                 : {};
 
-        config.models.providers[providerId] = {
+        nextProviders[providerId] = {
             ...cloneConfigValue(templateProvider),
             ...currentProvider,
         };
 
         if (Array.isArray(templateProvider.models)) {
-            config.models.providers[providerId].models = cloneConfigValue(templateProvider.models);
+            nextProviders[providerId].models = cloneConfigValue(templateProvider.models);
             synced = true;
         }
     }
+    config.models.providers = nextProviders;
 
     if (!config.agents || typeof config.agents !== 'object') config.agents = {};
     if (!config.agents.defaults || typeof config.agents.defaults !== 'object') {
@@ -128,6 +131,27 @@ function syncTemplateModelCatalog(config, templateConfig) {
     }
 
     return synced;
+}
+
+function applyProviderApiKeyDefaults(config, whoami) {
+    const providers = config?.models?.providers;
+    if (!providers || typeof providers !== 'object') {
+        return;
+    }
+
+    for (const [providerId, providerConfig] of Object.entries(providers)) {
+        if (!providerConfig || typeof providerConfig !== 'object') {
+            continue;
+        }
+
+        const templateApiKey = providerConfig.apiKey;
+        if (templateApiKey === 'xxx' || !templateApiKey) {
+            providerConfig.apiKey = whoami;
+            console.log(`   - 🔄 ${providerId} apiKey 为默认值，已设置为当前用户: ${whoami}`);
+        } else {
+            console.log(`   - 🔑 检测到 ${providerId} apiKey 已被自定义，保留模板值: ${templateApiKey}`);
+        }
+    }
 }
 
 function resolveCommaSeparatedSet(envKey, defaults) {
@@ -372,15 +396,7 @@ function setupConfig() {
 
         if (!config.models) config.models = {};
         if (!config.models.providers) config.models.providers = {};
-        if (!config.models.providers.xlb) config.models.providers.xlb = {};
-
-        const templateApiKey = config.models.providers.xlb.apiKey;
-        if (templateApiKey === 'xxx' || !templateApiKey) {
-            config.models.providers.xlb.apiKey = whoami;
-            console.log(`   - 🔄 模板 apiKey 为默认值，已设置为 XLB apiKey: ${whoami}`);
-        } else {
-            console.log(`   - 🔑 检测到模板中的 apiKey 已被自定义，保留模板值: ${templateApiKey}`);
-        }
+        applyProviderApiKeyDefaults(config, whoami);
 
         applyBrowserSecurityPolicy(config);
         console.log(

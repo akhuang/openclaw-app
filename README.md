@@ -59,10 +59,10 @@ copy script\openclaw.example.json script\openclaw.json
 
 | 配置项 | 说明 |
 |--------|------|
-| `models.providers.xlb.baseUrl` | 内网 LLM 服务地址；launcher 会拒绝未授权外网主机 |
-| `models.providers.xlb.apiKey` | 当前模板使用固定占位值 `openclaw`；也可改成任意非空字母串 |
-| `models.providers.xlb.models` | 可用模型列表；launcher 会据此生成只显示这些模型的 allowlist |
-| `agents.defaults.model` | 默认模型，如 `xlb/Auto`，必须在上面的模型列表内 |
+| `models.providers.local.baseUrl` | 本地 OpenAI-compatible LLM 服务地址；launcher 会拒绝未授权外网主机 |
+| `models.providers.local.apiKey` | 当前模板使用固定占位值 `openclaw`；也可改成任意非空字母串 |
+| `models.providers.local.models` | 可用模型列表；launcher 会据此生成只显示这些模型的 allowlist |
+| `agents.defaults.model` | 默认模型，如 `local/Auto`，必须在上面的模型列表内 |
 
 ### 3. 启动
 
@@ -131,8 +131,8 @@ copy script\openclaw.example.json script\openclaw.json
   },
   "models": {
     "providers": {
-      "xlb": {
-        "baseUrl": "http://xiaoluban.rnd.huawei.com/y/llm/v1",
+      "local": {
+        "baseUrl": "http://127.0.0.1:8081/v1",
         "apiKey": "openclaw",
         "api": "openai-completions",
         "models": [
@@ -216,18 +216,18 @@ copy script\openclaw.example.json script\openclaw.json
   },
   "agents": {
     "defaults": {
-      "model": "xlb/Auto",
+      "model": "local/Auto",
       "models": {
-        "xlb/MiniMax-M2.7": {},
-        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
-        "xlb/DeepSeek_R1_Distill_Qwen_32B": {},
-        "xlb/Qwen3-Coder-30B-A3B-Instruct": {},
-        "xlb/Qwen2.5-VL-72B-Instruct": {},
-        "xlb/Qwen2.5-72B_QC3": {},
-        "xlb/MiniMax-M2.5": {},
-        "xlb/Auto": {},
-        "xlb/Qwen3-32B-All-V1": {},
-        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
+        "local/MiniMax-M2.7": {},
+        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
+        "local/DeepSeek_R1_Distill_Qwen_32B": {},
+        "local/Qwen3-Coder-30B-A3B-Instruct": {},
+        "local/Qwen2.5-VL-72B-Instruct": {},
+        "local/Qwen2.5-72B_QC3": {},
+        "local/MiniMax-M2.5": {},
+        "local/Auto": {},
+        "local/Qwen3-32B-All-V1": {},
+        "local/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
       }
     }
   }
