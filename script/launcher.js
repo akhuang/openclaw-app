@@ -56,6 +56,80 @@ function mergeObjects(base, overlay) {
     return merged;
 }
 
+function cloneConfigValue(value) {
+    return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function collectConfiguredModelRefs(config) {
+    const refs = new Set();
+    const providers = config?.models?.providers;
+    if (!providers || typeof providers !== 'object') {
+        return refs;
+    }
+
+    for (const [providerId, providerConfig] of Object.entries(providers)) {
+        if (!providerId || !Array.isArray(providerConfig?.models)) {
+            continue;
+        }
+        for (const model of providerConfig.models) {
+            const modelId = typeof model?.id === 'string' ? model.id.trim() : '';
+            if (modelId) {
+                refs.add(`${providerId}/${modelId}`);
+            }
+        }
+    }
+
+    return refs;
+}
+
+function syncTemplateModelCatalog(config, templateConfig) {
+    const templateProviders = templateConfig?.models?.providers;
+    if (!templateProviders || typeof templateProviders !== 'object') {
+        return false;
+    }
+
+    if (!config.models || typeof config.models !== 'object') config.models = {};
+    if (!config.models.providers || typeof config.models.providers !== 'object') {
+        config.models.providers = {};
+    }
+
+    let synced = false;
+    for (const [providerId, templateProvider] of Object.entries(templateProviders)) {
+        if (!providerId || !templateProvider || typeof templateProvider !== 'object') {
+            continue;
+        }
+        const currentProvider =
+            config.models.providers[providerId] && typeof config.models.providers[providerId] === 'object'
+                ? config.models.providers[providerId]
+                : {};
+
+        config.models.providers[providerId] = {
+            ...cloneConfigValue(templateProvider),
+            ...currentProvider,
+        };
+
+        if (Array.isArray(templateProvider.models)) {
+            config.models.providers[providerId].models = cloneConfigValue(templateProvider.models);
+            synced = true;
+        }
+    }
+
+    if (!config.agents || typeof config.agents !== 'object') config.agents = {};
+    if (!config.agents.defaults || typeof config.agents.defaults !== 'object') {
+        config.agents.defaults = {};
+    }
+
+    const configuredRefs = collectConfiguredModelRefs(config);
+    const currentDefault = resolveDefaultModelRef(config);
+    const templateDefault = resolveDefaultModelRef(templateConfig);
+    if (templateDefault && (!currentDefault || !configuredRefs.has(currentDefault))) {
+        config.agents.defaults.model = cloneConfigValue(templateConfig.agents.defaults.model);
+        synced = true;
+    }
+
+    return synced;
+}
+
 function resolveCommaSeparatedSet(envKey, defaults) {
     const raw = (process.env[envKey] || '').trim();
     if (!raw) {
@@ -277,9 +351,13 @@ function setupConfig() {
             PRESERVE_CONFIG && previousConfig && typeof previousConfig === 'object'
                 ? mergeObjects(templateConfig, previousConfig)
                 : templateConfig;
+        const syncedTemplateModels = syncTemplateModelCatalog(config, templateConfig);
 
         if (PRESERVE_CONFIG && previousConfig && typeof previousConfig === 'object') {
             console.log('   - ♻️ 已保留现有配置中的插件和自定义字段，仅同步模板关键项');
+        }
+        if (syncedTemplateModels) {
+            console.log('   - 🧠 已按模板同步模型列表和默认模型');
         }
 
         const finalToken = existingToken || crypto.randomBytes(24).toString('hex');

@@ -41,12 +41,78 @@
         "api": "openai-completions",
         "models": [
           {
-            "id": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
-            "name": "Qwen3.5-35B-A3B-AWQ-OPENCLAW_API"
+            "id": "MiniMax-M2.7",
+            "name": "MiniMax-M2.7",
+            "contextWindow": 196608,
+            "contextTokens": 172032,
+            "maxTokens": 24576
           },
           {
-            "id": "Qwen3.5-9B-Q4-OPENCLAW_API",
-            "name": "Qwen3.5-9B-Q4-OPENCLAW_API"
+            "id": "Qwen2.5-Coder-32B-SFT-ALL-V2_QC2",
+            "name": "Qwen2.5-Coder-32B-SFT-ALL-V2_QC2",
+            "contextWindow": 32768,
+            "contextTokens": 24000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "DeepSeek_R1_Distill_Qwen_32B",
+            "name": "DeepSeek_R1_Distill_Qwen_32B",
+            "contextWindow": 32768,
+            "contextTokens": 24000,
+            "maxTokens": 16384,
+            "reasoning": true
+          },
+          {
+            "id": "Qwen3-Coder-30B-A3B-Instruct",
+            "name": "Qwen3-Coder-30B-A3B-Instruct",
+            "contextWindow": 128000,
+            "contextTokens": 120000,
+            "maxTokens": 8000
+          },
+          {
+            "id": "Qwen2.5-VL-72B-Instruct",
+            "name": "Qwen2.5-VL-72B-Instruct",
+            "contextWindow": 32000,
+            "contextTokens": 24000,
+            "maxTokens": 8000,
+            "input": [
+              "text",
+              "image"
+            ]
+          },
+          {
+            "id": "Qwen2.5-72B_QC3",
+            "name": "Qwen2.5-72B_QC3",
+            "contextWindow": 32000,
+            "maxTokens": 32000
+          },
+          {
+            "id": "MiniMax-M2.5",
+            "name": "MiniMax-M2.5",
+            "contextWindow": 196608,
+            "contextTokens": 172032,
+            "maxTokens": 24576
+          },
+          {
+            "id": "Auto",
+            "name": "Auto",
+            "contextWindow": 128000,
+            "contextTokens": 120000,
+            "maxTokens": 8000
+          },
+          {
+            "id": "Qwen3-32B-All-V1",
+            "name": "Qwen3-32B-All-V1",
+            "contextWindow": 30000,
+            "contextTokens": 30000,
+            "maxTokens": 30000
+          },
+          {
+            "id": "Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K",
+            "name": "Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K",
+            "contextWindow": 65536,
+            "contextTokens": 65536,
+            "maxTokens": 8192
           }
         ]
       }
@@ -54,10 +120,18 @@
   },
   "agents": {
     "defaults": {
-      "model": "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API",
+      "model": "xlb/Auto",
       "models": {
-        "xlb/Qwen3.5-35B-A3B-AWQ-OPENCLAW_API": {},
-        "xlb/Qwen3.5-9B-Q4-OPENCLAW_API": {}
+        "xlb/MiniMax-M2.7": {},
+        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2": {},
+        "xlb/DeepSeek_R1_Distill_Qwen_32B": {},
+        "xlb/Qwen3-Coder-30B-A3B-Instruct": {},
+        "xlb/Qwen2.5-VL-72B-Instruct": {},
+        "xlb/Qwen2.5-72B_QC3": {},
+        "xlb/MiniMax-M2.5": {},
+        "xlb/Auto": {},
+        "xlb/Qwen3-32B-All-V1": {},
+        "xlb/Qwen2.5-Coder-32B-SFT-ALL-V2_QC2-64K": {}
       }
     }
   },
