@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 const { execSync } = require('child_process');
 const { envFlag, loadEnv } = require('./dotenv');
 
@@ -20,6 +21,11 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const TEMPLATE_JSON = path.join(__dirname, 'openclaw.json');
 const VERSION_FILE = path.join(ROOT_DIR, 'openclaw.version');
 const SKILLS_DIR = path.join(ROOT_DIR, 'skills');
+const OPENCLAW_PACKAGE_DIRS = [
+    path.join(ROOT_DIR, 'runtime', 'npm-global', 'lib', 'node_modules', 'openclaw'),
+    path.join(ROOT_DIR, 'runtime', 'npm-global', 'node_modules', 'openclaw'),
+];
+const DISABLED_BUNDLED_SKILLS_SENTINEL = '__openclaw_app_disable_bundled_skills__';
 const DEFAULT_STATE_DIR = path.join(ROOT_DIR, 'data', '.openclaw');
 const STATE_DIR = path.resolve(process.env.OPENCLAW_STATE_DIR || DEFAULT_STATE_DIR);
 const TARGET_JSON_FILE = path.resolve(
@@ -58,6 +64,163 @@ function mergeObjects(base, overlay) {
 
 function cloneConfigValue(value) {
     return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function listChildDirectoriesSafe(dir) {
+    try {
+        return fs
+            .readdirSync(dir, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules')
+            .map((entry) => path.join(dir, entry.name))
+            .sort((left, right) => left.localeCompare(right));
+    } catch (e) {
+        return [];
+    }
+}
+
+function parseSkillNameFromFile(skillFile) {
+    let raw;
+    try {
+        raw = fs.readFileSync(skillFile, 'utf8');
+    } catch (e) {
+        return null;
+    }
+
+    const fallback = path.basename(path.dirname(skillFile)).trim();
+    if (!raw.startsWith('---')) {
+        return fallback || null;
+    }
+
+    const endIndex = raw.indexOf('\n---', 3);
+    const frontmatter = endIndex >= 0 ? raw.slice(3, endIndex) : raw.slice(3, 4096);
+    const match = frontmatter.match(/^name:\s*["']?([^"'\n#]+?)["']?\s*$/m);
+    const name = match?.[1]?.trim();
+    return name || fallback || null;
+}
+
+function collectSkillNamesFromRoot(rootDir) {
+    const names = new Set();
+    const resolvedRoot = path.resolve(rootDir);
+
+    const addSkillDir = (skillDir) => {
+        const name = parseSkillNameFromFile(path.join(skillDir, 'SKILL.md'));
+        if (name) names.add(name);
+    };
+
+    if (fs.existsSync(path.join(resolvedRoot, 'SKILL.md'))) {
+        addSkillDir(resolvedRoot);
+        return names;
+    }
+
+    for (const childDir of listChildDirectoriesSafe(resolvedRoot)) {
+        if (fs.existsSync(path.join(childDir, 'SKILL.md'))) {
+            addSkillDir(childDir);
+            continue;
+        }
+        for (const nestedDir of listChildDirectoriesSafe(childDir)) {
+            if (fs.existsSync(path.join(nestedDir, 'SKILL.md'))) {
+                addSkillDir(nestedDir);
+            }
+        }
+    }
+
+    return names;
+}
+
+function resolveBundledSkillNames() {
+    const names = new Set();
+    for (const packageDir of OPENCLAW_PACKAGE_DIRS) {
+        const skillsRoot = path.join(packageDir, 'skills');
+        if (fs.existsSync(skillsRoot)) {
+            for (const name of collectSkillNamesFromRoot(skillsRoot)) names.add(name);
+        }
+    }
+    return Array.from(names).sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeStringArray(value) {
+    return Array.isArray(value) ? value.filter((entry) => typeof entry === 'string' && entry.trim()) : [];
+}
+
+function removeSkillEntryEnabledFalse(config, skillNames) {
+    const entries = config.skills?.entries;
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return;
+    for (const name of skillNames) {
+        const current = entries[name];
+        if (!current || typeof current !== 'object' || Array.isArray(current)) continue;
+        if (current.enabled === false) delete current.enabled;
+        if (Object.keys(current).length === 0) delete entries[name];
+    }
+}
+
+function resolveProjectSkillNames(config) {
+    const roots = new Set([SKILLS_DIR, path.join(WORKSPACE_DIR, 'skills')]);
+    for (const extraDir of normalizeStringArray(config?.skills?.load?.extraDirs)) {
+        if (path.resolve(extraDir) === path.resolve(SKILLS_DIR)) {
+            roots.add(path.resolve(extraDir));
+        }
+    }
+
+    const names = new Set();
+    for (const root of roots) {
+        for (const name of collectSkillNamesFromRoot(root)) names.add(name);
+    }
+    return Array.from(names).sort((left, right) => left.localeCompare(right));
+}
+
+function resolveNonProjectSkillNames(config) {
+    const roots = new Set([
+        path.join(STATE_DIR, 'skills'),
+        path.join(WORKSPACE_DIR, '.agents', 'skills'),
+    ]);
+    const homeDir = os.homedir();
+    if (homeDir) {
+        roots.add(path.join(homeDir, '.agents', 'skills'));
+    }
+    for (const extraDir of normalizeStringArray(config?.skills?.load?.extraDirs)) {
+        const resolved = path.resolve(extraDir);
+        if (resolved !== path.resolve(SKILLS_DIR)) {
+            roots.add(resolved);
+        }
+    }
+
+    const names = new Set();
+    for (const root of roots) {
+        for (const name of collectSkillNamesFromRoot(root)) names.add(name);
+    }
+    return Array.from(names).sort((left, right) => left.localeCompare(right));
+}
+
+function applySkillsPolicy(config) {
+    const projectSkillNames = resolveProjectSkillNames(config);
+    const nonProjectSkillNames = resolveNonProjectSkillNames(config);
+
+    if (!config.skills || typeof config.skills !== 'object') config.skills = {};
+    if (!config.skills.load || typeof config.skills.load !== 'object') config.skills.load = {};
+    config.skills.load.extraDirs = [SKILLS_DIR];
+    config.skills.allowBundled = [DISABLED_BUNDLED_SKILLS_SENTINEL];
+
+    if (!config.skills.entries || typeof config.skills.entries !== 'object' || Array.isArray(config.skills.entries)) {
+        config.skills.entries = {};
+    }
+    removeSkillEntryEnabledFalse(config, projectSkillNames);
+    for (const name of nonProjectSkillNames) {
+        const current = config.skills.entries[name];
+        config.skills.entries[name] = {
+            ...(current && typeof current === 'object' && !Array.isArray(current) ? current : {}),
+            enabled: false,
+        };
+    }
+
+    if (!config.agents || typeof config.agents !== 'object') config.agents = {};
+    if (!config.agents.defaults || typeof config.agents.defaults !== 'object') config.agents.defaults = {};
+    delete config.agents.defaults.skills;
+
+    return {
+        projectSkillNames,
+        nonProjectSkillNames,
+        bundledSkillNames: resolveBundledSkillNames(),
+    };
 }
 
 function collectConfiguredModelRefs(config) {
@@ -408,13 +571,6 @@ function setupConfig() {
             console.log('   - 📴 已按环境配置禁用 Welink channel / plugin entry');
         }
 
-        if (!config.skills) config.skills = {};
-        if (!config.skills.load) config.skills.load = {};
-        if (!config.skills.load.extraDirs) config.skills.load.extraDirs = [];
-        if (!config.skills.load.extraDirs.includes(SKILLS_DIR)) {
-            config.skills.load.extraDirs.push(SKILLS_DIR);
-        }
-
         if (!config.agents) config.agents = {};
         if (!config.agents.defaults) config.agents.defaults = {};
         config.agents.defaults.workspace = WORKSPACE_DIR;
@@ -425,6 +581,11 @@ function setupConfig() {
                 `   - 🎯 已同步模型白名单，仅保留已配置模型: ${Object.keys(modelAllowlist).join(', ')}`
             );
         }
+
+        const skillsPolicy = applySkillsPolicy(config);
+        console.log(
+            `   - 🧩 已加载业务 skills: ${skillsPolicy.projectSkillNames.length} 个；已禁用默认 bundled skills: ${skillsPolicy.bundledSkillNames.length} 个；已禁用个人/非项目 skills: ${skillsPolicy.nonProjectSkillNames.length} 个`
+        );
 
         assertRestrictedModelEndpoints(config);
         console.log(`   - 🛡️ 已校验模型出口，仅允许内网/白名单主机: ${Array.from(resolveAllowedModelHosts()).join(', ')}`);
