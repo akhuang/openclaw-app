@@ -154,7 +154,7 @@ function removeSkillEntryEnabledFalse(config, skillNames) {
 }
 
 function resolveProjectSkillNames(config) {
-    const roots = new Set([SKILLS_DIR, path.join(WORKSPACE_DIR, 'skills')]);
+    const roots = new Set([SKILLS_DIR]);
     for (const extraDir of normalizeStringArray(config?.skills?.load?.extraDirs)) {
         if (path.resolve(extraDir) === path.resolve(SKILLS_DIR)) {
             roots.add(path.resolve(extraDir));
@@ -171,6 +171,8 @@ function resolveProjectSkillNames(config) {
 function resolveNonProjectSkillNames(config) {
     const roots = new Set([
         path.join(STATE_DIR, 'skills'),
+        path.join(STATE_DIR, 'plugin-skills'),
+        path.join(WORKSPACE_DIR, 'skills'),
         path.join(WORKSPACE_DIR, '.agents', 'skills'),
     ]);
     const homeDir = os.homedir();
@@ -214,7 +216,8 @@ function applySkillsPolicy(config) {
 
     if (!config.agents || typeof config.agents !== 'object') config.agents = {};
     if (!config.agents.defaults || typeof config.agents.defaults !== 'object') config.agents.defaults = {};
-    delete config.agents.defaults.skills;
+    // 名称白名单兜底：启动后运行时新装的 ClawHub / workshop / plugin skills 也不会被激活
+    config.agents.defaults.skills = projectSkillNames.slice();
 
     return {
         projectSkillNames,
@@ -584,7 +587,10 @@ function setupConfig() {
 
         const skillsPolicy = applySkillsPolicy(config);
         console.log(
-            `   - 🧩 已加载业务 skills: ${skillsPolicy.projectSkillNames.length} 个；已禁用默认 bundled skills: ${skillsPolicy.bundledSkillNames.length} 个；已禁用个人/非项目 skills: ${skillsPolicy.nonProjectSkillNames.length} 个`
+            `   - 🧩 已加载业务 skills: ${skillsPolicy.projectSkillNames.length} 个；已禁用默认 bundled skills: ${skillsPolicy.bundledSkillNames.length} 个；已禁用外部 skills (个人/workspace/插件): ${skillsPolicy.nonProjectSkillNames.length} 个`
+        );
+        console.log(
+            `   - 🎯 已写入业务 skills 白名单 (agents.defaults.skills): ${skillsPolicy.projectSkillNames.join(', ') || '(空)'}`
         );
 
         assertRestrictedModelEndpoints(config);

@@ -85,7 +85,7 @@ copy script\openclaw.example.json script\openclaw.json
 2. 从旧配置提取 Token（首次运行自动生成）
 3. 启用 browser 工具，但强制写入内网白名单 `ssrfPolicy`
 4. 校验所有模型 `baseUrl` 只能指向内网 IP 或白名单主机
-5. 注入 Token、端口、apiKey，加载仓库业务 skills，并禁用默认 bundled / 个人 skills
+5. 注入 Token、端口、apiKey，加载仓库业务 skills，并禁用所有外部 skills（bundled / 个人 / workspace / 插件），同时写入业务 skills 白名单 `agents.defaults.skills`，运行时新装的 ClawHub / workshop / 插件 skills 也不会被激活
 6. 默认跳过服务端注册，避免任何额外出网调用
 7. **完全覆盖**写入 `data\.openclaw\openclaw.json`（覆盖前自动备份 .bak）
 
