@@ -12,7 +12,7 @@ fail() {
 expect_contains() {
     local file="$1"
     local needle="$2"
-    if ! rg -F -q "$needle" "$file"; then
+    if ! grep -qF -- "$needle" "$file"; then
         fail "$file is missing expected text: $needle"
     fi
 }
@@ -20,7 +20,7 @@ expect_contains() {
 expect_missing() {
     local file="$1"
     local needle="$2"
-    if rg -F -q "$needle" "$file"; then
+    if grep -qF -- "$needle" "$file"; then
         fail "$file still contains stale text: $needle"
     fi
 }
@@ -97,6 +97,6 @@ expect_missing "$ROOT/README.md" "~/.openclaw/openclaw.json"
 [ -f "$TGZ" ] || fail "missing bundled package: $TGZ"
 [ -f "$NODE_EXE" ] || fail "missing bundled node executable: $NODE_EXE"
 [ -f "$NPM_CMD" ] || fail "missing bundled npm command: $NPM_CMD"
-tar -tzf "$TGZ" | rg -F -q "package/openclaw.mjs" || fail "tgz is missing package/openclaw.mjs"
+tar -tzf "$TGZ" | grep -qF "package/openclaw.mjs" || fail "tgz is missing package/openclaw.mjs"
 
 echo "PASS: OpenClaw version references are centralized at $VERSION"
